@@ -8,7 +8,10 @@ least 1 (a 4.6-min video costs 4). The download's safety cap
 rounded **up**. Editing a clip that exists is free: AI edit and effects, the
 hook overlay, recut/rerender and reframe reserve `EDITOR_ACTION_MINUTES` (0), and
 `reserve_managed_action` bounds 0-minute actions (captions included) with
-`EDITOR_ACTIONS_PER_HOUR` per user instead (429). Thumbnail image generation,
+`EDITOR_ACTIONS_PER_HOUR` per user instead (429). AI edit and AI effects send
+the clip to Gemini on the managed key, so only `AI_EDITS_FREE_PER_DAY` (5) a day
+per user are free and each later one costs `MANAGED_ANALYSIS_MINUTES` again
+(`app._ai_edit_minutes`, in memory per UTC day). Thumbnail image generation,
 thumbnail transcription/analysis and SaaS-shorts analysis keep their fixed cost.
 
 ## Cost line and picked stretch (`/api/process/estimate`, `SourceCost.jsx`)

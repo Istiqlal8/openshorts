@@ -311,6 +311,29 @@ def _check_editor_rate(owner_id):
     times.append(now)
 
 
+# Gemini-backed editor actions (AI edit, AI effects) used today, per owner:
+# (owner id, UTC date) -> count. In memory: a restart hands out at most one
+# more day's allowance, which is the cost of not writing 0-minute ledger rows.
+_ai_edit_counts: dict = {}
+
+
+async def _ai_edit_minutes(request):
+    """Minutes an AI edit/effects call costs: 0 for the first
+    ``AI_EDITS_FREE_PER_DAY`` of the day, ``MANAGED_ANALYSIS_MINUTES`` after."""
+    owner = await _owner_id(request)
+    if not owner:
+        return _cloud_config.MANAGED_ANALYSIS_MINUTES
+    today = datetime.now(timezone.utc).date().isoformat()
+    for k in [k for k in _ai_edit_counts if k[1] != today]:
+        _ai_edit_counts.pop(k, None)
+    key = (str(owner), today)
+    used = _ai_edit_counts.get(key, 0)
+    if used >= _cloud_config.AI_EDITS_FREE_PER_DAY:
+        return _cloud_config.MANAGED_ANALYSIS_MINUTES
+    _ai_edit_counts[key] = used + 1
+    return _cloud_config.EDITOR_ACTION_MINUTES
+
+
 def _check_probe_rate(user_id):
     now = time.monotonic()
     times = _probe_times.setdefault(str(user_id), [])
@@ -4149,7 +4172,7 @@ async def edit_clip(
 
     # Meter the managed Gemini call so it can't be looped for free. Skip only for
     # genuine BYOK (self-host body key) — in cloud, body_key is always None.
-    edit_minutes = _cloud_config.EDITOR_ACTION_MINUTES if BILLING_ENABLED else 0
+    edit_minutes = await _ai_edit_minutes(request) if BILLING_ENABLED else 0
     reservation_id = None if body_key else await reserve_managed_action(
         request, edit_minutes, req.job_id, "edit")
 
@@ -5146,7 +5169,7 @@ async def generate_effects_config(
         raise HTTPException(status_code=400, detail="Job result not available")
 
     # Meter the managed Gemini call (no-op for self-host).
-    fx_minutes = _cloud_config.EDITOR_ACTION_MINUTES if BILLING_ENABLED else 0
+    fx_minutes = await _ai_edit_minutes(request) if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(request, fx_minutes, req.job_id, "effects")
 
     try:

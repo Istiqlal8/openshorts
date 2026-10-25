@@ -151,6 +151,12 @@ RENDER_MINUTES = 3
 # the same month: 12 such actions in an hour, the busiest user 46).
 EDITOR_ACTION_MINUTES = 0
 EDITOR_ACTIONS_PER_HOUR = 60
+# Except the two that call Gemini with the clip (AI edit, AI effects): those
+# spend the managed Google key, so only this many a day per user are free and
+# each one after costs MANAGED_ANALYSIS_MINUTES again. Real use since 1-aug-2026:
+# p99 is 4 a day, the busiest user-day 8, so 5 covers 99.4% of user-days, while
+# the hourly cap alone would let one account run ~1,400 Gemini calls a day.
+AI_EDITS_FREE_PER_DAY = 5
 
 
 def billable_minutes(minutes: float) -> int:

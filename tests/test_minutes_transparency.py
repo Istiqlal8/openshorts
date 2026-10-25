@@ -163,6 +163,24 @@ def test_probe_cache_expires(monkeypatch):
     assert app_module._cached_probe("u1", "https://youtu.be/x") is None
 
 
+def test_ai_edits_are_free_only_up_to_the_daily_allowance(monkeypatch):
+    monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
+    monkeypatch.setattr(app_module, "_cloud_config", config)
+    monkeypatch.setattr(app_module, "_ai_edit_counts", {})
+    owner = {"id": "u1"}
+
+    async def _owner(request):
+        return owner["id"]
+    monkeypatch.setattr(app_module, "_owner_id", _owner)
+
+    def cost():
+        return asyncio.run(app_module._ai_edit_minutes(None))
+    assert [cost() for _ in range(config.AI_EDITS_FREE_PER_DAY)] == [0] * config.AI_EDITS_FREE_PER_DAY
+    assert cost() == config.MANAGED_ANALYSIS_MINUTES  # Gemini spend is metered again
+    owner["id"] = "u2"
+    assert cost() == 0  # per user
+
+
 def test_free_editor_actions_are_capped_per_hour(monkeypatch):
     monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
     monkeypatch.setattr(app_module, "_cloud_config", config)

@@ -134,7 +134,7 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
                     </button>
                 )}
             </div>
-            <p className="text-muted mt-0.5">Billed per minute of video you import. Editing the clips afterwards is free.</p>
+            <p className="text-muted mt-0.5">Billed per minute of video you import. Trims, reframes, hooks and captions on the clips are free.</p>
             {(picking || range) && range && (
                 <div className="mt-3 space-y-2 animate-fade">
                     <label className="block">
