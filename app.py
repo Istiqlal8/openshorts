@@ -5896,6 +5896,8 @@ async def post_to_socials(req: SocialPostRequest, request: Request):
     if BILLING_ENABLED and forced_profile:
         stale = await _platforms_needing_reconnect(post_user, req.platforms)
         if stale:
+            print(f"[social-post-failed] request=none platform={','.join(stale)} "
+                  f"status=reauth_required message='refused before upload: reconnect needed'")
             names = ", ".join(p.capitalize() if p != "youtube" else "YouTube" for p in stale)
             raise HTTPException(status_code=409, detail=(
                 f"Reconnect {names} first: its login has expired, so the post would "
@@ -6007,7 +6009,35 @@ async def social_post_status(request_id: str, request: Request):
          "message": r.get("message") or r.get("error")}
         for r in (data.get("results") or []) if isinstance(r, dict)
     ] if isinstance(data, dict) else []
-    return {"status": (data or {}).get("status") or "unknown", "results": results}
+    status = (data or {}).get("status") or "unknown"
+    _log_post_failures(request_id, status, results)
+    return {"status": status, "results": results}
+
+
+# request_ids whose failure is already in the log: the dashboard polls every
+# 5 s, so the same failed post would otherwise be logged a dozen times.
+_logged_post_failures: set = set()
+
+
+def _log_post_failures(request_id, status, results):
+    """One greppable line per failed platform of a post ("[social-post-failed]").
+
+    The dashboard shows the reason to the user, but nothing kept it server-side:
+    12 failures in a day (mostly TikTok, 25-oct-2026) left no trace of why.
+    Platform, Upload-Post status and its message only: no user data.
+    """
+    failed = [r for r in results if r.get("success") is False]
+    if status == "failed" and not failed:
+        failed = [{"platform": "all", "message": "status failed without per-platform results"}]
+    if not failed or request_id in _logged_post_failures:
+        return
+    if len(_logged_post_failures) > 5000:
+        _logged_post_failures.clear()
+    _logged_post_failures.add(request_id)
+    for r in failed:
+        msg = " ".join(str(r.get("message") or "").split())[:300]
+        print(f"[social-post-failed] request={request_id} platform={r.get('platform')} "
+              f"status={status} message={msg!r}")
 
 @app.get("/api/social/user")
 async def get_social_user(request: Request):

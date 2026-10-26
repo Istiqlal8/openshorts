@@ -249,3 +249,18 @@ def test_cut_from_a_start_offset_happens_once(tmp_path):
     # A resumed job runs the same cut again on the already-cut file: no-op.
     main.cap_source_duration(path, 1, start_seconds=30)
     assert 59 <= seconds() <= 62
+
+
+def test_failed_posts_are_logged_once_per_request(monkeypatch, capsys):
+    monkeypatch.setattr(app_module, "_logged_post_failures", set())
+    results = [{"platform": "tiktok", "success": False, "message": "Account  needs\nreauth"},
+               {"platform": "youtube", "success": True, "message": "Published"}]
+    app_module._log_post_failures("req-9", "completed", results)
+    app_module._log_post_failures("req-9", "completed", results)  # the next poll
+    out = capsys.readouterr().out.strip().splitlines()
+    assert out == ["[social-post-failed] request=req-9 platform=tiktok status=completed "
+                   "message='Account needs reauth'"]
+    app_module._log_post_failures("req-ok", "completed", results[1:])
+    app_module._log_post_failures("req-x", "failed", [])
+    out = capsys.readouterr().out
+    assert "req-ok" not in out and "platform=all status=failed" in out
