@@ -58,7 +58,10 @@ identically.
   attempts instead of repeating anonymous hits for the same verdict.
 - `PAID_PROXY_DAILY_MB` (default 500) is the hard ceiling: past it the paid
   proxy is dropped from the probe and from every new job's env until UTC
-  midnight.
+  midnight (`reserve_process_minutes` sets `request.state.paid_allowed`;
+  `run_job` checks again when a queued job starts). Thumbnail Studio downloads
+  run in the API process and take `allow_paid` / `route_out` from
+  `download_youtube_video` instead of the env.
 - Do not keep `PROXY_URL` in a local `.env`: every local `main.py` run would then
   bill the per-GB proxy.
 

@@ -42,7 +42,7 @@ class TestResolvePostProfileInCloud:
         # The whole point: no server profile must NOT mean "use theirs".
         with pytest.raises(HTTPException) as exc:
             app_module.resolve_post_profile(None, OTHER_TENANT)
-        assert exc.value.status_code == 503
+        assert exc.value.status_code == 409  # "connect a social account first"
 
     @pytest.mark.parametrize("empty", [None, ""])
     def test_empty_server_profile_is_also_refused(self, empty):

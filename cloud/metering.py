@@ -647,6 +647,31 @@ async def reserve_minutes(user_id, minutes: float, job_id: str, job_type: str = 
             return str(row.id)
 
 
+async def free_actions_today(user_id, job_type: str) -> int:
+    """How many zero-minute ``job_type`` rows this user has today (UTC)."""
+    day_start = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+    async with database.session() as session:
+        return int((await session.execute(
+            select(func.count(UsageLedger.id)).where(and_(
+                UsageLedger.user_id == user_id,
+                UsageLedger.job_type == job_type,
+                UsageLedger.created_at >= day_start,
+            ))
+        )).scalar_one() or 0)
+
+
+async def record_free_action(user_id, job_id: str, job_type: str):
+    """A committed zero-minute row: counts a free daily allowance (AI edits)
+    across restarts without touching the balance."""
+    async with database.session() as session:
+        async with session.begin():
+            session.add(UsageLedger(
+                user_id=user_id, job_id=str(job_id), job_type=job_type,
+                minutes=_D(0), minutes_from_plan=_D(0), minutes_from_topup=_D(0),
+                status="committed",
+            ))
+
+
 async def commit_reservation(ledger_id: str):
     """Flip a reservation to committed. Consumption already happened at reserve."""
     async with database.session() as session:

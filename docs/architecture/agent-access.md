@@ -10,7 +10,11 @@
 - `POST /api/hook`: add text hook overlays.
 - `POST /api/translate`: AI voice dubbing via ElevenLabs.
 - `GET /api/translate/languages`: supported dubbing languages.
-- `POST /api/social/post`: post to social media (async upload).
+- `POST /api/social/post`: post to social media (async upload). Cloud posts
+  through one managed Upload-Post account, one `os_<hex>` profile per user,
+  created only by `/api/social/connect` (reads never create it). Capped at
+  `SOCIAL_POSTS_PER_HOUR` per user and `SOCIAL_POSTS_PER_DAY_FREE` on the free
+  plan (429 with the reason); thumbnail and SaaSShorts publishing count too.
 - `POST /mcp`: MCP server (JSON-RPC), the pipeline as agent tools.
 - `POST/GET/DELETE /api/keys`: user API keys (cloud mode, session JWT only).
 - `DELETE /api/account`: erase the account and everything in it (GDPR art. 17).
@@ -58,6 +62,10 @@ as the access token. No new auth path, no refresh tokens: the key shows up in
 Account → API keys and revoking it disconnects the app. The `/mcp` 401 carries
 `WWW-Authenticate: Bearer resource_metadata=...` so clients find the flow.
 `oauth_codes` is in `USER_OWNED_TABLES`; `oauth_clients` deliberately not.
+Registration is capped per client IP (`OAUTH_REGISTRATIONS_PER_HOUR`, 429
+`slow_down`): a client registers once per connection, the cap only stops one
+stuck in a loop. Agent upload slots (`POST /api/uploads`) are capped at
+`MAX_PENDING_UPLOADS_PER_USER` open at once.
 
 ## Webhooks
 

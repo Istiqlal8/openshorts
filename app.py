@@ -189,16 +189,20 @@ async def resolve_gemini(request: Request) -> Optional[str]:
 async def resolve_upload_post(request: Request, body_key: Optional[str] = None):
     """Resolve the Upload-Post key and the profile to post as.
 
-    Returns ``(api_key, forced_profile_username_or_None)``. Cloud is paid-only:
-    an entitled user gets the managed key + their own forced profile (body key /
-    user_id ignored); a non-entitled user gets ``(None, None)``. Self-host keeps
-    BYOK: header, then body key, then env.
+    Returns ``(api_key, forced_profile_username_or_None)``. Cloud: an entitled
+    user gets the managed key + their own forced profile (body key / user_id
+    ignored); a non-entitled user gets ``(None, None)``. Self-host keeps BYOK:
+    header, then body key, then env.
+
+    The profile is the one already stored for the user, or None: it is created
+    only when the user opens the connect page (/api/social/connect), since a
+    profile with nothing connected cannot post anything. Creating it here, on
+    every dashboard load, made one vendor profile per sign-up.
     """
     if BILLING_ENABLED:
         user = await _user_from_request(request)
         if managed_keys.has_active_entitlement(user):
-            profile = await cloud.social_profiles.ensure_profile(user)
-            return managed_keys.upload_post_key(), profile
+            return managed_keys.upload_post_key(), user.upload_post_profile
         return None, None
     header = request.headers.get("X-Upload-Post-Key")
     key = header or body_key or os.environ.get("UPLOAD_POST_API_KEY")
@@ -219,8 +223,8 @@ def resolve_post_profile(forced_profile: Optional[str], client_profile: Optional
     if BILLING_ENABLED:
         if not forced_profile:
             raise HTTPException(
-                status_code=503,
-                detail="Could not resolve your social profile. Please try again.")
+                status_code=409,
+                detail="Connect a social account first: use \"connect socials\" and try again.")
         return forced_profile
     # Self-host: no user model, the caller owns the Upload-Post account whose
     # key resolved above, so it picks its own profile.
@@ -311,13 +315,15 @@ def _check_editor_rate(owner_id):
     times.append(now)
 
 
-# Gemini-backed editor actions (AI edit, AI effects) used today, per owner:
-# (owner id, UTC date) -> count. In memory: a restart hands out at most one
-# more day's allowance, which is the cost of not writing 0-minute ledger rows.
+# Gemini-backed editor actions (AI edit, AI effects) used today, per owner.
+# Each free one is a committed 0-minute ledger row (AI_EDIT_FREE_JOB_TYPE), so
+# the allowance survives restarts and deploys; this in-memory map,
+# (owner id, UTC date) -> count, is only the fallback when the DB is down.
+AI_EDIT_FREE_JOB_TYPE = "ai_edit_free"
 _ai_edit_counts: dict = {}
 
 
-async def _ai_edit_minutes(request):
+async def _ai_edit_minutes(request, job_id=""):
     """Minutes an AI edit/effects call costs: 0 for the first
     ``AI_EDITS_FREE_PER_DAY`` of the day, ``MANAGED_ANALYSIS_MINUTES`` after."""
     owner = await _owner_id(request)
@@ -327,10 +333,20 @@ async def _ai_edit_minutes(request):
     for k in [k for k in _ai_edit_counts if k[1] != today]:
         _ai_edit_counts.pop(k, None)
     key = (str(owner), today)
-    used = _ai_edit_counts.get(key, 0)
+    try:
+        used = await _metering.free_actions_today(owner, AI_EDIT_FREE_JOB_TYPE)
+    except Exception as e:
+        print(f"⚠️ AI edit count unavailable ({e}); using the in-memory count")
+        used = None
+    if used is None:
+        used = _ai_edit_counts.get(key, 0)
     if used >= _cloud_config.AI_EDITS_FREE_PER_DAY:
         return _cloud_config.MANAGED_ANALYSIS_MINUTES
     _ai_edit_counts[key] = used + 1
+    try:
+        await _metering.record_free_action(owner, job_id or "ai_edit", AI_EDIT_FREE_JOB_TYPE)
+    except Exception as e:
+        print(f"⚠️ Could not record a free AI edit: {e}")
     return _cloud_config.EDITOR_ACTION_MINUTES
 
 
@@ -453,6 +469,21 @@ def _apply_source_cut(env, partial):
         env["MAX_SOURCE_MINUTES"] = str(partial["processed_minutes"])
 
 
+def _discard_rejected_source(input_path, job_output_dir, upload_slot=None, upload_id=None):
+    """Undo what /api/process wrote to disk for a job that was refused."""
+    if input_path and os.path.exists(input_path):
+        try:
+            if upload_slot is not None and upload_id:
+                os.replace(input_path, upload_slot["path"])
+                pending_uploads[upload_id] = upload_slot
+            else:
+                os.remove(input_path)
+        except OSError:
+            pass
+    if job_output_dir:
+        shutil.rmtree(job_output_dir, ignore_errors=True)
+
+
 def _parse_source_range(start, end):
     """``(start, end)`` from the request fields, or None when neither was sent."""
     if start in (None, "") and end in (None, ""):
@@ -540,13 +571,51 @@ async def reserve_process_minutes(request, url, input_path, job_id, max_minutes=
 
     priority = _cloud_config.PLAN_PRIORITY.get(user.plan, 1)
 
-    # Per-user simultaneous job cap.
+    # Per-user simultaneous job cap. Submissions still between this check and
+    # their entry in `jobs` (probe, reservation, quality gate) count too, or a
+    # burst of parallel requests would all pass it.
     limit = _cloud_config.PLAN_JOB_LIMIT.get(user.plan, 2)
     active = sum(1 for j in jobs.values()
                  if j.get('user_id') == user.id and j.get('status') in ('queued', 'processing'))
+    active += _submissions_in_flight(user.id)
     if active >= limit:
         raise HTTPException(status_code=429,
                             detail="You already have the maximum number of jobs running. Please wait.")
+    _begin_submission(job_id, user.id)
+    try:
+        return await _reserve_after_job_limit(request, user, url, input_path, job_id,
+                                              max_minutes, source_range, priority)
+    except BaseException:
+        _end_submission(job_id)
+        raise
+
+
+# job_id -> (owner id, monotonic start) for /api/process submissions that
+# passed the job-limit check and are not in `jobs` yet. Entries end when the
+# job is registered or refused; the age cap only covers a request that died
+# without either.
+_submissions: dict = {}
+_SUBMISSION_MAX_AGE = 600
+
+
+def _begin_submission(job_id, owner_id):
+    _submissions[str(job_id)] = (str(owner_id), time.monotonic())
+
+
+def _end_submission(job_id):
+    _submissions.pop(str(job_id), None)
+
+
+def _submissions_in_flight(owner_id) -> int:
+    now = time.monotonic()
+    for k in [k for k, (_, t) in _submissions.items() if now - t > _SUBMISSION_MAX_AGE]:
+        _submissions.pop(k, None)
+    return sum(1 for o, _ in _submissions.values() if o == str(owner_id))
+
+
+async def _reserve_after_job_limit(request, user, url, input_path, job_id, max_minutes,
+                                   source_range, priority):
+    """The rest of reserve_process_minutes, once the job limit admitted it."""
 
     # Out of minutes -> 402 before probing. The probe is a real yt-dlp metadata
     # fetch through the download proxies, and every job costs at least one
@@ -572,12 +641,9 @@ async def reserve_process_minutes(request, url, input_path, job_id, max_minutes=
     # Probe input duration (blocking → run in a thread). When today's paid
     # traffic is over budget, the probe (and below, the job itself) runs
     # without the per-GB proxy: statics or nothing.
-    paid_allowed = True
-    try:
-        from cloud import proxy_ledger as _pl
-        paid_allowed = not await _pl.budget_exceeded()
-    except Exception:
-        pass
+    paid_allowed = not await _paid_proxy_budget_exceeded()
+    # process_endpoint drops PROXY_URL from the job env when this is False.
+    request.state.paid_allowed = paid_allowed
     loop = asyncio.get_event_loop()
     try:
         if cached is not None:
@@ -2831,11 +2897,26 @@ def _job_encode_env(env):
     return env
 
 
+async def _paid_proxy_budget_exceeded() -> bool:
+    """Today's per-GB proxy budget (PAID_PROXY_DAILY_MB) is spent. Cloud only;
+    fails open like proxy_ledger.budget_exceeded itself."""
+    if not BILLING_ENABLED:
+        return False
+    try:
+        from cloud import proxy_ledger as _pl
+        return bool(await _pl.budget_exceeded())
+    except Exception:
+        return False
+
+
 async def run_job(job_id, job_data):
     """Executes the subprocess for a specific job."""
 
     cmd = job_data['cmd']
     env = _job_encode_env(job_data['env'])
+    if await _paid_proxy_budget_exceeded():
+        # The daily paid-proxy budget ran out while this job was queued.
+        env.pop("PROXY_URL", None)
     output_dir = job_data['output_dir']
     
     jobs[job_id]['status'] = 'processing'
@@ -3063,6 +3144,7 @@ async def _quality_gate(url: str, force_low: bool):
 
 async def _drop_unstarted_job(reservation_id, job_output_dir):
     """Undo a submission refused after its minutes were reserved."""
+    _end_submission(os.path.basename(str(job_output_dir or "").rstrip(os.sep)))
     if reservation_id:
         try:
             await _metering.release_reservation(reservation_id)
@@ -3146,6 +3228,17 @@ async def create_upload(request: Request):
     except Exception:
         body = {}
     filename = os.path.basename(str((body or {}).get("filename") or "video.mp4")) or "video.mp4"
+    if BILLING_ENABLED:
+        # Each slot can hold MAX_FILE_SIZE_MB on disk until it expires.
+        now = time.time()
+        open_slots = sum(1 for sl in pending_uploads.values()
+                         if sl.get("user_id") == user_id
+                         and now - sl["created"] <= UPLOAD_TTL_SECONDS)
+        cap = _cloud_config.MAX_PENDING_UPLOADS_PER_USER
+        if open_slots >= cap:
+            raise HTTPException(status_code=429, detail=(
+                f"You have {open_slots} unused upload slots open (the most is {cap}). "
+                "Process or DELETE one, or wait for it to expire."))
     upload_id = str(uuid.uuid4())
     pending_uploads[upload_id] = {
         "user_id": user_id,
@@ -3352,9 +3445,6 @@ async def process_endpoint(
         raise gemini_missing_error()
 
     ack_flag = str(acknowledged).lower() in ("1", "true", "yes")
-    # May be lowered by the paid-proxy budget check in the metering block
-    # below; self-host never runs that block, so it must default here.
-    paid_allowed = True
     force_low = str(force_low_quality).lower() in ("1", "true", "yes")
 
     # Handle JSON body manually for URL payload
@@ -3459,9 +3549,6 @@ async def process_endpoint(
     # probe above already gets this right.
     cmd = [sys.executable, "-u", "main.py"] # -u for unbuffered
     env = child_env()
-    if not paid_allowed:
-        # Daily paid-proxy budget hit: this job runs on the free routes only.
-        env.pop("PROXY_URL", None)
     if api_key:
         env["GEMINI_API_KEY"] = api_key # Override with key from request
     else:
@@ -3607,9 +3694,20 @@ async def process_endpoint(
     print(f"[attestation] job={job_id} ip={attestation['ip']} source={attestation['source']} ack=true")
 
     # Meter + reserve minutes for managed users (no-op for BYOK / self-host).
-    user_id, priority, reservation_id, user_plan, partial = await reserve_process_minutes(
-        request, url, input_path, job_id, max_minutes=max_minutes,
-        source_range=_parse_source_range(source_start, source_end))
+    # A refusal (402 quota, 429 job limit, 400 unreadable source) deletes the
+    # source it was handed instead of leaving up to MAX_FILE_SIZE_MB on disk
+    # until the retention sweep; an agent upload goes back to its slot.
+    try:
+        user_id, priority, reservation_id, user_plan, partial = await reserve_process_minutes(
+            request, url, input_path, job_id, max_minutes=max_minutes,
+            source_range=_parse_source_range(source_start, source_end))
+    except BaseException:
+        _discard_rejected_source(input_path, job_output_dir,
+                                 upload_slot=upload_slot, upload_id=upload_id)
+        raise
+    if getattr(request.state, "paid_allowed", True) is False:
+        # Daily paid-proxy budget hit: this job runs on the free routes only.
+        env.pop("PROXY_URL", None)
 
     # Pre-flight quality gate: probe the offered resolution BEFORE starting, so
     # the user can abort (refresh cookies / update yt-dlp) instead of burning
@@ -3659,6 +3757,7 @@ async def process_endpoint(
     api_base = os.environ.get("PUBLIC_API_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
 
     # Enqueue Job
+    _end_submission(job_id)  # from here the job counts in `jobs` itself
     jobs[job_id] = {
         'status': 'queued',
         'logs': _TimedLog([f"Job {job_id} queued."]),
@@ -4172,7 +4271,7 @@ async def edit_clip(
 
     # Meter the managed Gemini call so it can't be looped for free. Skip only for
     # genuine BYOK (self-host body key) — in cloud, body_key is always None.
-    edit_minutes = await _ai_edit_minutes(request) if BILLING_ENABLED else 0
+    edit_minutes = await _ai_edit_minutes(request, req.job_id) if BILLING_ENABLED else 0
     reservation_id = None if body_key else await reserve_managed_action(
         request, edit_minutes, req.job_id, "edit")
 
@@ -5169,7 +5268,7 @@ async def generate_effects_config(
         raise HTTPException(status_code=400, detail="Job result not available")
 
     # Meter the managed Gemini call (no-op for self-host).
-    fx_minutes = await _ai_edit_minutes(request) if BILLING_ENABLED else 0
+    fx_minutes = await _ai_edit_minutes(request, req.job_id) if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(request, fx_minutes, req.job_id, "effects")
 
     try:
@@ -5875,6 +5974,42 @@ async def _platforms_needing_reconnect(profile, platforms):
     return [p for p in platforms if (accounts.get(p) or {}).get("reauth_required")]
 
 
+# Posts through the managed Upload-Post account, per owner: monotonic times of
+# the last hour, and (owner, UTC day) -> count for the free plan's daily cap.
+# In memory: a restart forgets them, which only ever errs in the user's favour.
+_social_post_times: dict = {}
+_social_post_days: dict = {}
+
+
+async def _check_social_post_rate(request):
+    """429 past SOCIAL_POSTS_PER_HOUR (any plan) or SOCIAL_POSTS_PER_DAY_FREE
+    (free plan). Cloud only; counts the post being attempted."""
+    if not BILLING_ENABLED:
+        return
+    user = await _user_from_request(request)
+    if user is None:
+        return
+    key = str(user.id)
+    now = time.monotonic()
+    times = _social_post_times.setdefault(key, [])
+    times[:] = [t for t in times if now - t < 3600]
+    if len(times) >= _cloud_config.SOCIAL_POSTS_PER_HOUR:
+        raise HTTPException(status_code=429, detail=(
+            f"You have sent {len(times)} posts in the last hour, the most allowed. "
+            "Please wait a few minutes and try again."))
+    if user.plan == "free":
+        today = datetime.now(timezone.utc).date().isoformat()
+        for k in [k for k in _social_post_days if k[1] != today]:
+            _social_post_days.pop(k, None)
+        used = _social_post_days.get((key, today), 0)
+        if used >= _cloud_config.SOCIAL_POSTS_PER_DAY_FREE:
+            raise HTTPException(status_code=429, detail=(
+                f"The free plan posts up to {_cloud_config.SOCIAL_POSTS_PER_DAY_FREE} clips a day. "
+                f"The limit resets at midnight UTC; paid plans have no daily limit: {upgrade_url('post_limit')}"))
+        _social_post_days[(key, today)] = used + 1
+    times.append(now)
+
+
 @app.post("/api/social/post")
 async def post_to_socials(req: SocialPostRequest, request: Request):
     await _ensure_job_files(req.job_id, request)
@@ -5892,6 +6027,7 @@ async def post_to_socials(req: SocialPostRequest, request: Request):
     await _assert_job_owner(request, job)
     if 'result' not in job or 'clips' not in job['result']:
         raise HTTPException(status_code=400, detail="Job result not available")
+    await _check_social_post_rate(request)
 
     if BILLING_ENABLED and forced_profile:
         stale = await _platforms_needing_reconnect(post_user, req.platforms)
@@ -6039,6 +6175,31 @@ def _log_post_failures(request_id, status, results):
         print(f"[social-post-failed] request={request_id} platform={r.get('platform')} "
               f"status={status} message={msg!r}")
 
+SOCIAL_PLATFORMS = ("tiktok", "instagram", "youtube")
+
+
+async def _managed_social_user(request, api_key, profile):
+    """The caller's own profile and what it has connected, fetched alone (the
+    account-wide list holds every user's profile). With no profile yet there is
+    nothing to fetch: the name it will get is returned with nothing connected,
+    and the connect page creates it."""
+    if not profile:
+        user = await _user_from_request(request)
+        name = cloud.social_profiles.profile_username_for(user.id)
+        return {"profiles": [{"username": name, "connected": []}]}
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(f"https://api.upload-post.com/api/uploadposts/users/{profile}",
+                                headers={"Authorization": f"Apikey {api_key}"})
+    if resp.status_code == 404:
+        return {"profiles": [{"username": profile, "connected": []}]}
+    if resp.status_code != 200:
+        print(f"❌ Upload-Post profile fetch error: {resp.status_code}")
+        raise HTTPException(status_code=resp.status_code, detail="Failed to fetch user profile")
+    socials = ((resp.json() or {}).get("profile") or {}).get("social_accounts") or {}
+    connected = [p for p in SOCIAL_PLATFORMS if isinstance(socials.get(p), dict)]
+    return {"profiles": [{"username": profile, "connected": connected}]}
+
+
 @app.get("/api/social/user")
 async def get_social_user(request: Request):
     """Proxy to fetch user profiles from Upload-Post.
@@ -6049,6 +6210,9 @@ async def get_social_user(request: Request):
     api_key, forced_profile = await resolve_upload_post(request, None)
     if not api_key:
          raise HTTPException(status_code=400, detail="Missing X-Upload-Post-Key header")
+
+    if BILLING_ENABLED:
+        return await _managed_social_user(request, api_key, forced_profile)
 
     url = "https://api.upload-post.com/api/uploadposts/users"
     print(f"🔍 Fetching User ID from: {url}")
@@ -6352,6 +6516,141 @@ async def social_cancel_scheduled(job_id: str, request: Request, user: Optional[
 
 # --- Thumbnail Studio Endpoints ---
 
+def thumbnail_transcribe_minutes(source_minutes) -> int:
+    """Minutes a Thumbnail Studio transcription costs: one per
+    THUMBNAIL_SOURCE_MINUTES_PER_CHARGED minutes of source, never less than the
+    flat TRANSCRIBE_MINUTES a typical video always cost."""
+    from cloud import config as _cfg  # plain constants; importable with billing off
+    per = max(1, int(_cfg.THUMBNAIL_SOURCE_MINUTES_PER_CHARGED))
+    minutes = max(0.0, float(source_minutes or 0))
+    return max(int(_cfg.TRANSCRIBE_MINUTES), int(math.ceil(minutes / per - 1e-9)))
+
+
+def _check_thumbnail_length(minutes):
+    from cloud import config as _cfg
+    cap = int(_cfg.THUMBNAIL_MAX_SOURCE_MINUTES)
+    if cap > 0 and float(minutes) > cap + 0.5:
+        raise HTTPException(status_code=413, detail=(
+            f"This video is {float(minutes):.0f} minutes long. Thumbnail Studio takes videos "
+            f"up to {cap} minutes: upload the part you want titles for."))
+
+
+async def _probe_thumbnail_url(request, url, user):
+    """Check a Thumbnail Studio link before anything downloads it.
+
+    Returns ``(minutes, paid_allowed)``. The URL passes the same validation as
+    /api/process; in cloud mode the caller needs at least a minute left, the
+    probe counts against the hourly probe cap, never uses the per-GB proxy past
+    its daily budget, and a source longer than THUMBNAIL_MAX_SOURCE_MINUTES is
+    refused. Self-host only validates (``minutes`` None)."""
+    if DISABLE_YOUTUBE_URL:
+        raise HTTPException(status_code=403, detail="YouTube URL ingest is disabled on this deployment. Please upload a file you own.")
+    await _validate_source_url(url)
+    if not BILLING_ENABLED:
+        return None, True
+    balance = await _metering.get_balance(user.id)
+    if balance["remaining"] < 1:
+        _maybe_send_quota_email(user)
+        raise payment_required(
+            "quota_exceeded", "The user is out of OpenShorts processing minutes for this period.",
+            minutes_required=1, minutes_remaining=balance["remaining"])
+    _check_probe_rate(user.id)
+    paid_allowed = not await _paid_proxy_budget_exceeded()
+    loop = asyncio.get_event_loop()
+    try:
+        minutes = await loop.run_in_executor(
+            None, functools.partial(_metering.probe_url_minutes, url, allow_paid=paid_allowed))
+    except Exception as e:
+        from yt_clients import NotASingleVideo
+        if isinstance(e, NotASingleVideo):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400,
+                            detail="Could not determine the video duration. Try a different source.")
+    finally:
+        try:
+            from cloud import proxy_ledger as _pl
+            await _pl.drain_probe_events()
+        except Exception:
+            pass
+    _check_thumbnail_length(minutes)
+    return float(minutes), paid_allowed
+
+
+async def _download_thumbnail_source(url, session_id, paid_allowed=True, cap_minutes=None):
+    """Download a Thumbnail Studio link in a worker thread (never on the event
+    loop) and record any per-GB proxy bytes in the ledger, like a job does."""
+    from main import download_youtube_video
+    route = {}
+    loop = asyncio.get_event_loop()
+    try:
+        vpath, _ = await loop.run_in_executor(None, functools.partial(
+            download_youtube_video, url, UPLOAD_DIR, allow_paid=paid_allowed,
+            cap_minutes=cap_minutes, route_out=route))
+    finally:
+        if BILLING_ENABLED and route:
+            try:
+                from cloud import proxy_ledger as _pl
+                await _pl.record_download(session_id, route, url)
+            except Exception as e:
+                print(f"⚠️ Could not record thumbnail download route: {e}")
+    if BILLING_ENABLED and cap_minutes:
+        # The download is a second request: a server may answer it with more
+        # than the probe saw. Transcribe only what was paid for.
+        try:
+            got = await loop.run_in_executor(None, _metering.probe_file_minutes, vpath)
+        except Exception:
+            got = 0.0
+        if got > float(cap_minutes) + 5:
+            try:
+                os.remove(vpath)
+            except OSError:
+                pass
+            raise RuntimeError("The downloaded video is longer than the link reported.")
+    return vpath
+
+
+async def _save_thumbnail_upload(file, session_id):
+    """Stream an uploaded file to UPLOAD_DIR (size-capped) and, in cloud mode,
+    probe its length. Returns ``(path, minutes)``; the file is deleted when it
+    is refused (too big, unreadable or too long)."""
+    # basename() stops a "../../x" filename from escaping UPLOAD_DIR; the
+    # chunked read caps memory so a huge body can't OOM.
+    safe_name = os.path.basename(file.filename or "upload") or "upload"
+    video_path = os.path.join(UPLOAD_DIR, f"thumb_{session_id}_{safe_name}")
+    size = 0
+    limit_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
+    with open(video_path, "wb") as buffer:
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > limit_bytes:
+                buffer.close()
+                os.remove(video_path)
+                raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
+            buffer.write(chunk)
+    if not BILLING_ENABLED:
+        return video_path, None
+    try:
+        minutes = await asyncio.get_event_loop().run_in_executor(
+            None, _metering.probe_file_minutes, video_path)
+    except Exception:
+        _remove_quietly(video_path)
+        raise HTTPException(status_code=400, detail="The upload is not a readable video file.")
+    try:
+        _check_thumbnail_length(minutes)
+    except HTTPException:
+        _remove_quietly(video_path)
+        raise
+    return video_path, float(minutes)
+
+
+def _remove_quietly(path):
+    if path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 @app.post("/api/thumbnail/upload")
 async def thumbnail_upload(
     request: Request,
@@ -6359,34 +6658,35 @@ async def thumbnail_upload(
     url: Optional[str] = Form(None),
 ):
     """Upload video and start background Whisper transcription immediately."""
-    await require_managed_entitlement(request)
+    user = await require_managed_entitlement(request)
+    url = (url or "").strip() or None
     if not url and not file:
         raise HTTPException(status_code=400, detail="Must provide URL or File")
 
     session_id = str(uuid.uuid4())
     transcript_event = asyncio.Event()
 
-    # Save file if uploaded directly. basename() stops a "../../x" filename from
-    # escaping UPLOAD_DIR; the chunked read caps memory so a huge body can't OOM.
+    # Everything is checked and reserved BEFORE the background download or
+    # Whisper start: the URL, the source length and the balance.
     video_path = None
+    source_minutes = None
+    paid_allowed = True
     if file:
-        safe_name = os.path.basename(file.filename or "upload") or "upload"
-        video_path = os.path.join(UPLOAD_DIR, f"thumb_{session_id}_{safe_name}")
-        size = 0
-        limit_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
-        with open(video_path, "wb") as buffer:
-            while chunk := await file.read(1024 * 1024):
-                size += len(chunk)
-                if size > limit_bytes:
-                    os.remove(video_path)
-                    raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
-                buffer.write(chunk)
+        url = None
+        video_path, source_minutes = await _save_thumbnail_upload(file, session_id)
+    else:
+        source_minutes, paid_allowed = await _probe_thumbnail_url(request, url, user)
 
-    # Meter a fixed guard cost for the background download + Whisper transcription
-    # so an entitled user can't loop it for free. Settled when the job finishes.
-    transcribe_minutes = _cloud_config.TRANSCRIBE_MINUTES if BILLING_ENABLED else 0
-    reservation_id = await reserve_managed_action(
-        request, transcribe_minutes, session_id, "thumbnail_transcribe")
+    # Meter the background download + Whisper transcription by the source's
+    # length so an entitled user can't loop it for free. Settled when the job
+    # finishes.
+    transcribe_minutes = thumbnail_transcribe_minutes(source_minutes) if BILLING_ENABLED else 0
+    try:
+        reservation_id = await reserve_managed_action(
+            request, transcribe_minutes, session_id, "thumbnail_transcribe")
+    except BaseException:
+        _remove_quietly(video_path)
+        raise
 
     # Initialize session
     thumbnail_sessions[session_id] = {
@@ -6407,11 +6707,10 @@ async def thumbnail_upload(
     async def run_background_whisper():
         try:
             vpath = video_path
-            # Download YouTube video if URL was provided
+            # Download the video if a URL was provided
             if not vpath and url:
-                from main import download_youtube_video
-                loop = asyncio.get_event_loop()
-                vpath, _ = await loop.run_in_executor(None, download_youtube_video, url, UPLOAD_DIR)
+                vpath = await _download_thumbnail_source(
+                    url, session_id, paid_allowed=paid_allowed, cap_minutes=source_minutes)
                 thumbnail_sessions[session_id]["video_path"] = vpath
 
             from main import transcribe_video
@@ -6432,6 +6731,7 @@ async def thumbnail_upload(
                 "transcript_segments": segments,
                 "video_duration": duration,
                 "language": transcript.get("language", "en"),
+                "metered": True,  # the transcription was paid for
             })
             print(f"✅ [Thumbnail] Background Whisper complete for session {session_id}")
             if reservation_id:
@@ -6463,6 +6763,14 @@ async def thumbnail_analyze(
         raise gemini_missing_error()
 
     pre_transcript = None
+    url = (url or "").strip() or None
+    # Managed Gemini analysis (no-op for self-host); a source analysed here
+    # directly also pays for its transcription, as /upload would have.
+    analyze_minutes = _cloud_config.MANAGED_ANALYSIS_MINUTES if BILLING_ENABLED else 0
+    download_url = None
+    paid_allowed = True
+    source_minutes = None
+    video_path = None
 
     # Check for pre-existing session with background Whisper
     if session_id and session_id in thumbnail_sessions:
@@ -6491,27 +6799,27 @@ async def thumbnail_analyze(
 
         session_id = str(uuid.uuid4())
 
-        if url:
-            from main import download_youtube_video
-            video_path, _ = download_youtube_video(url, UPLOAD_DIR)
+        if file:
+            video_path, source_minutes = await _save_thumbnail_upload(file, session_id)
         else:
-            safe_name = os.path.basename(file.filename or "upload") or "upload"
-            video_path = os.path.join(UPLOAD_DIR, f"thumb_{session_id}_{safe_name}")
-            size = 0
-            limit_bytes = MAX_FILE_SIZE_MB * 1024 * 1024
-            with open(video_path, "wb") as buffer:
-                while chunk := await file.read(1024 * 1024):
-                    size += len(chunk)
-                    if size > limit_bytes:
-                        os.remove(video_path)
-                        raise HTTPException(status_code=413, detail=f"File too large. Max size {MAX_FILE_SIZE_MB}MB")
-                    buffer.write(chunk)
-
-    # Meter the managed Gemini analysis (no-op for self-host).
-    analyze_minutes = _cloud_config.MANAGED_ANALYSIS_MINUTES if BILLING_ENABLED else 0
-    reservation_id = await reserve_managed_action(request, analyze_minutes, session_id, "thumbnail_analyze")
+            user = await _user_from_request(request) if BILLING_ENABLED else None
+            source_minutes, paid_allowed = await _probe_thumbnail_url(request, url, user)
+            download_url = url
+        if BILLING_ENABLED:
+            analyze_minutes += thumbnail_transcribe_minutes(source_minutes)
 
     try:
+        reservation_id = await reserve_managed_action(request, analyze_minutes, session_id, "thumbnail_analyze")
+    except BaseException:
+        if not pre_transcript and video_path and session_id not in thumbnail_sessions:
+            _remove_quietly(video_path)
+        raise
+
+    try:
+        if download_url:
+            video_path = await _download_thumbnail_source(
+                download_url, session_id, paid_allowed=paid_allowed, cap_minutes=source_minutes)
+
         # Run analysis in thread pool (skips Whisper if pre_transcript is available)
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, analyze_video_for_titles, api_key, video_path, pre_transcript)
@@ -6528,7 +6836,10 @@ async def thumbnail_analyze(
             "conversation": thumbnail_sessions[session_id].get("conversation", []),
             "video_path": video_path,
             "transcript_segments": result.get("segments", []),
-            "video_duration": result.get("video_duration", 0)
+            "video_duration": result.get("video_duration", 0),
+            # A metered analysis ran on this session: its follow-up text calls
+            # (refine, describe) are part of what was paid for.
+            "metered": True,
         })
 
         if reservation_id:
@@ -6549,6 +6860,50 @@ async def thumbnail_analyze(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _cloud_cfg():
+    """cloud.config: plain env-backed constants, importable with billing off."""
+    from cloud import config as _cfg
+    return _cfg
+
+
+def _check_text_length(value, limit, field):
+    if value and limit > 0 and len(value) > limit:
+        raise HTTPException(status_code=413, detail=(
+            f"The {field} is {len(value)} characters long; the limit is {limit}."))
+
+
+_thumbnail_text_times: dict = {}  # owner id -> [monotonic timestamps]
+
+
+async def _thumbnail_text_gate(request, session):
+    """Bounds on the Gemini text calls of Thumbnail Studio (refine, describe).
+
+    Cloud only. An hourly cap per user, and a free account at zero minutes can
+    only keep working on a session it already paid for (analysis or
+    transcription); a
+    manual-title session (no analysis, no charge) needs a minute left."""
+    if not BILLING_ENABLED:
+        return
+    user = await _user_from_request(request)
+    if user is None:
+        return
+    now = time.monotonic()
+    times = _thumbnail_text_times.setdefault(str(user.id), [])
+    times[:] = [t for t in times if now - t < 3600]
+    if len(times) >= _cloud_config.THUMBNAIL_TEXT_CALLS_PER_HOUR:
+        raise HTTPException(status_code=429,
+                            detail="Too many title requests this hour. Please wait a few minutes.")
+    if user.plan == "free" and not (session or {}).get("metered"):
+        balance = await _metering.get_balance(user.id)
+        if balance["remaining"] < 1:
+            _maybe_send_quota_email(user)
+            raise payment_required(
+                "quota_exceeded",
+                "The user is out of OpenShorts minutes; analyze a video to get title suggestions.",
+                minutes_required=1, minutes_remaining=balance["remaining"])
+    times.append(now)
+
+
 class ThumbnailTitlesRequest(BaseModel):
     session_id: Optional[str] = None
     message: Optional[str] = None
@@ -6563,6 +6918,8 @@ async def thumbnail_titles(
     api_key = await resolve_gemini(request)
     if not api_key:
         raise gemini_missing_error()
+    _check_text_length(req.title, _cloud_cfg().THUMBNAIL_TITLE_MAX_CHARS, "title")
+    _check_text_length(req.message, _cloud_cfg().THUMBNAIL_MESSAGE_MAX_CHARS, "message")
 
     # Manual title mode - just create a session with the user's title
     if req.title:
@@ -6588,9 +6945,18 @@ async def thumbnail_titles(
 
     session = thumbnail_sessions[req.session_id]
     await _assert_job_owner(request, session)
+    await _thumbnail_text_gate(request, session)
+    refines = int(session.get("refines", 0))
+    if refines >= _cloud_cfg().THUMBNAIL_REFINES_PER_SESSION:
+        raise HTTPException(status_code=429, detail=(
+            f"This video has had {refines} title refinements, the most per analysis. "
+            "Analyze the video again to keep refining."))
+    session["refines"] = refines + 1
 
-    # Add user message to conversation history
+    # Add user message to conversation history; only the latest turns go back
+    # to the model, so the prompt stays bounded however long the chat runs.
     session["conversation"].append({"role": "user", "content": req.message})
+    del session["conversation"][:-_cloud_cfg().THUMBNAIL_CONVERSATION_MAX_TURNS]
 
     try:
         loop = asyncio.get_event_loop()
@@ -6611,6 +6977,7 @@ async def thumbnail_titles(
         if result.get("language"):
             session["language"] = result["language"]
         session["conversation"].append({"role": "assistant", "content": json.dumps(new_titles)})
+        del session["conversation"][:-_cloud_cfg().THUMBNAIL_CONVERSATION_MAX_TURNS]
 
         return {"titles": new_titles, "thumbnail_texts": session["thumbnail_texts"],
                 "language": session["language"]}
@@ -6776,11 +7143,13 @@ async def thumbnail_describe(
     if not api_key:
         raise gemini_missing_error()
 
+    _check_text_length(req.title, _cloud_cfg().THUMBNAIL_TITLE_MAX_CHARS, "title")
     if req.session_id not in thumbnail_sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
     session = thumbnail_sessions[req.session_id]
     await _assert_job_owner(request, session)
+    await _thumbnail_text_gate(request, session)
     segments = session.get("transcript_segments", [])
     if not segments:
         raise HTTPException(status_code=400, detail="No transcript segments available. Please analyze a video first.")
@@ -6794,7 +7163,8 @@ async def thumbnail_describe(
             req.title,
             segments,
             session.get("language", "en"),
-            session.get("video_duration", 0)
+            session.get("video_duration", 0),
+            _cloud_cfg().DESCRIBE_TRANSCRIPT_MAX_CHARS,
         )
         return {"description": result.get("description", "")}
 
@@ -6822,9 +7192,8 @@ async def thumbnail_publish(
     upload_key, forced_profile = await resolve_upload_post(request, api_key)
     if not upload_key:
         raise HTTPException(status_code=400, detail="Missing Upload-Post API key")
-    post_user = forced_profile or user_id
-    if not post_user:
-        raise HTTPException(status_code=400, detail="Missing Upload-Post user profile")
+    post_user = resolve_post_profile(forced_profile, user_id)
+    await _check_social_post_rate(request)
 
     session = thumbnail_sessions[session_id]
     await _assert_job_owner(request, session)
@@ -6981,6 +7350,11 @@ async def saasshorts_analyze(
 
     if not req.url and not req.description:
         raise HTTPException(status_code=400, detail="Provide a URL or a product description")
+    max_scripts = _cloud_cfg().SAAS_MAX_SCRIPTS
+    if not 1 <= int(req.num_scripts) <= max_scripts:
+        raise HTTPException(status_code=400,
+                            detail=f"num_scripts must be between 1 and {max_scripts}.")
+    _check_text_length(req.description, _cloud_cfg().SAAS_DESCRIPTION_MAX_CHARS, "description")
 
     # Meter the managed Gemini research/analysis (no-op for self-host).
     saas_minutes = _cloud_config.MANAGED_ANALYSIS_MINUTES if BILLING_ENABLED else 0
@@ -7153,6 +7527,7 @@ async def saasshorts_post_to_socials(req: SaaSPostRequest, request: Request):
 
     job = saas_jobs[req.job_id]
     await _assert_job_owner(request, job)
+    await _check_social_post_rate(request)
     result = job.get("result")
     if not result or not result.get("video_url"):
         raise HTTPException(status_code=400, detail="No video available for this job")

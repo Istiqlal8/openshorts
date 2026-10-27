@@ -859,7 +859,8 @@ def _content_block(error_text):
     return None
 
 
-def download_youtube_video(url, output_dir=".", on_audio=None):
+def download_youtube_video(url, output_dir=".", on_audio=None, allow_paid=True,
+                           cap_minutes=None, route_out=None):
     """
     Downloads a YouTube video using yt-dlp.
     Returns the path to the downloaded video and the video title.
@@ -868,6 +869,12 @@ def download_youtube_video(url, output_dir=".", on_audio=None):
     on its own, in parallel, and handed over as soon as it lands, so the
     caller can transcribe while the (much larger) video is still coming. It is
     the same audio format the merged mp4 gets. Never on the per-GB proxy.
+
+    In-process callers (the API itself, not a job's main.py) pass what a job
+    gets through its env: ``allow_paid=False`` drops ``PROXY_URL`` (daily
+    budget hit), ``cap_minutes`` bounds the fetch like ``SOURCE_CAP_MINUTES``,
+    and ``route_out`` (a dict) receives the route summary so the caller can
+    record paid bytes in the proxy ledger.
     """
     # SSRF guard: block non-http(s) schemes and private/loopback/metadata hosts
     # before handing the URL to yt-dlp.
@@ -907,7 +914,7 @@ def download_youtube_video(url, output_dir=".", on_audio=None):
     
     # Optional HTTP proxy. Set PROXY_URL to route downloads through it; unset
     # (self-host) goes direct as before.
-    _proxy = os.environ.get("PROXY_URL", "").strip() or None
+    _proxy = (os.environ.get("PROXY_URL", "").strip() or None) if allow_paid else None
     if _proxy:
         print("🌐 Using proxy for download.")
 
@@ -1000,7 +1007,10 @@ def download_youtube_video(url, output_dir=".", on_audio=None):
     # with no known duration) only the paid range plus a margin is fetched;
     # cap_source_duration still makes the exact cut afterwards.
     _range_cap = None
-    for _var, _margin in (("MAX_SOURCE_MINUTES", 5.0), ("SOURCE_CAP_MINUTES", 60.0)):
+    if cap_minutes is not None:
+        _range_cap = float(cap_minutes) * 60.0 + 60.0
+    for _var, _margin in (() if cap_minutes is not None else
+                          (("MAX_SOURCE_MINUTES", 5.0), ("SOURCE_CAP_MINUTES", 60.0))):
         _raw = os.environ.get(_var, "").strip()
         if _raw:
             try:
@@ -1158,6 +1168,11 @@ def download_youtube_video(url, output_dir=".", on_audio=None):
         if last_err is not None and _content_block(str(last_err)):
             break
 
+    if sanitized_title is None and isinstance(route_out, dict):
+        # A failed download still paid for its proxied attempts.
+        route_out.update({"winner": None, "attempts": attempt_log, "paid_bytes": sum(
+            int(a.get("bytes") or 0) for a in attempt_log if a.get("paid"))})
+
     if sanitized_title is None and last_err is not None and _content_block(str(last_err)):
         print(f"❌ {_content_block(str(last_err))}")
         raise last_err
@@ -1189,11 +1204,14 @@ Technical Details: {str(last_err)}
     # included: a paid attempt that died after three 10 MB fragments was
     # billed for them even though a later attempt won.
     paid_bytes = sum(int(a.get("bytes") or 0) for a in attempt_log if a.get("paid"))
-    print("PROXY_ROUTE=" + json.dumps({
+    route = {
         "winner": attempt_log[-1]["label"] if attempt_log and attempt_log[-1].get("ok") else None,
         "paid_bytes": paid_bytes,
         "attempts": attempt_log,
-    }, ensure_ascii=False))
+    }
+    if isinstance(route_out, dict):
+        route_out.update(route)
+    print("PROXY_ROUTE=" + json.dumps(route, ensure_ascii=False))
     if paid_bytes:
         # Machine-parseable marker consumed by app.py's log reader for the
         # monthly proxy-bandwidth counter. Not shown to clients (log filter).

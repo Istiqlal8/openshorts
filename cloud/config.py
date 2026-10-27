@@ -204,6 +204,50 @@ PLAN_JOB_LIMIT = {
 }
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, "") or default)
+    except ValueError:
+        return default
+
+
+# --- Usage limits ------------------------------------------------------------
+# Each one sits well above what real accounts do; they only bound a runaway
+# client or a script. All overridable by env.
+
+# Thumbnail Studio sources: the longest video it accepts, and how its
+# transcription is billed (one minute per this many source minutes, never less
+# than TRANSCRIBE_MINUTES, so a typical video keeps its flat price).
+THUMBNAIL_MAX_SOURCE_MINUTES = _env_int("THUMBNAIL_MAX_SOURCE_MINUTES", 180)
+THUMBNAIL_SOURCE_MINUTES_PER_CHARGED = _env_int("THUMBNAIL_SOURCE_MINUTES_PER_CHARGED", 10)
+# Title refinement and description calls (Gemini text) per user and hour, and
+# refinements per Thumbnail Studio session.
+THUMBNAIL_TEXT_CALLS_PER_HOUR = _env_int("THUMBNAIL_TEXT_CALLS_PER_HOUR", 60)
+THUMBNAIL_REFINES_PER_SESSION = _env_int("THUMBNAIL_REFINES_PER_SESSION", 40)
+THUMBNAIL_MESSAGE_MAX_CHARS = _env_int("THUMBNAIL_MESSAGE_MAX_CHARS", 2000)
+THUMBNAIL_TITLE_MAX_CHARS = _env_int("THUMBNAIL_TITLE_MAX_CHARS", 300)
+# Turns of the refinement chat sent back to the model (the oldest are dropped).
+THUMBNAIL_CONVERSATION_MAX_TURNS = _env_int("THUMBNAIL_CONVERSATION_MAX_TURNS", 20)
+# Transcript characters a description request sends (about 4 h of speech).
+DESCRIBE_TRANSCRIPT_MAX_CHARS = _env_int("DESCRIBE_TRANSCRIPT_MAX_CHARS", 200000)
+
+# Social posting through the managed Upload-Post account: posts per user and
+# hour (a scheduled week is one post per clip), and per day on the free plan.
+SOCIAL_POSTS_PER_HOUR = _env_int("SOCIAL_POSTS_PER_HOUR", 60)
+SOCIAL_POSTS_PER_DAY_FREE = _env_int("SOCIAL_POSTS_PER_DAY_FREE", 30)
+
+# Agent upload slots (POST /api/uploads) a user may hold open at once.
+MAX_PENDING_UPLOADS_PER_USER = _env_int("MAX_PENDING_UPLOADS_PER_USER", 5)
+
+# OAuth dynamic client registrations per client IP and hour. A client
+# registers once per connection; this only stops one stuck in a loop.
+OAUTH_REGISTRATIONS_PER_HOUR = _env_int("OAUTH_REGISTRATIONS_PER_HOUR", 60)
+
+# SaaSShorts analysis: scripts per request and manual description length.
+SAAS_MAX_SCRIPTS = _env_int("SAAS_MAX_SCRIPTS", 10)
+SAAS_DESCRIPTION_MAX_CHARS = _env_int("SAAS_DESCRIPTION_MAX_CHARS", 10000)
+
+
 class Settings:
     """Lazily-evaluated env-backed settings. Access attributes, not the class."""
 

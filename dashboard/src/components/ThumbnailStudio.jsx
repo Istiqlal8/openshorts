@@ -7,6 +7,15 @@ import SegmentedControl from './ui/SegmentedControl';
 
 const STEPS = ['Input', 'Titles', 'Generate', 'Description', 'Publish'];
 
+// The server's reason ("This video is 240 minutes long...") instead of raw JSON.
+function errorDetail(text) {
+  try {
+    const d = JSON.parse(text).detail;
+    if (typeof d === 'string') return d;
+  } catch { /* not JSON */ }
+  return text;
+}
+
 function DragDropZone({ label, accept, onFile, file, onClear, icon }) {
   const Icon = icon;
   const [isDragging, setIsDragging] = useState(false);
@@ -173,10 +182,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
         body: formData
       });
 
-      if (!res.ok) {
-        const err = await res.text();
-        throw new Error(err);
-      }
+      if (!res.ok) throw new Error(errorDetail(await res.text()));
 
       const data = await res.json();
       setSessionId(data.session_id);
@@ -189,6 +195,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
       }]);
       setStep(1);
     } catch (e) {
+      if (e instanceof QuotaError) { openQuotaWall(e, 'thumbnails'); return; }
       alert(`Analysis failed: ${e.message}`);
     } finally {
       setIsAnalyzing(false);
@@ -243,7 +250,7 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
         body: JSON.stringify({ session_id: sessionId, message: userMsg })
       });
 
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(errorDetail(await res.text()));
       const data = await res.json();
       setTitles(data.titles || []);
       setThumbnailTexts(data.thumbnail_texts || []);
@@ -254,9 +261,10 @@ export default function ThumbnailStudio({ geminiApiKey, uploadPostKey, uploadUse
       }]);
       setTimeout(scrollToBottom, 100);
     } catch (e) {
+      if (e instanceof QuotaError) openQuotaWall(e, 'thumbnails');
       setChatHistory(prev => [...prev, {
         role: 'assistant',
-        content: `Failed to refine: ${e.message}`
+        content: `Failed to refine: ${e instanceof QuotaError ? 'no minutes left' : e.message}`
       }]);
     } finally {
       setIsRefining(false);

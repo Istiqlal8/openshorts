@@ -171,8 +171,32 @@ async def openai_apps_challenge():
 # --------------------------------------------------------------------------- #
 # Dynamic client registration (RFC 7591)
 # --------------------------------------------------------------------------- #
+# client IP -> monotonic times of its registrations in the last hour.
+_register_times: dict = {}
+
+
+def _check_register_rate(ip: str):
+    import time
+    from .config import OAUTH_REGISTRATIONS_PER_HOUR
+    now = time.monotonic()
+    if len(_register_times) > 10000:  # bound the map itself
+        for k in [k for k, v in _register_times.items() if not v or now - v[-1] > 3600]:
+            _register_times.pop(k, None)
+    times = _register_times.setdefault(ip or "?", [])
+    times[:] = [t for t in times if now - t < 3600]
+    if len(times) >= OAUTH_REGISTRATIONS_PER_HOUR:
+        return False
+    times.append(now)
+    return True
+
+
 @router.post("/oauth/register", status_code=201)
 async def register_client(request: Request):
+    if not _check_register_rate(request.client.host if request.client else ""):
+        resp = _oauth_error(429, "slow_down", "Too many client registrations from this address; "
+                            "reuse the client_id you already registered.")
+        resp.headers["Retry-After"] = "600"
+        return resp
     try:
         body = json.loads(await request.body() or b"{}")
     except ValueError:
