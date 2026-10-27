@@ -6382,11 +6382,20 @@ async def social_total_impressions(
     """
     import social_metrics
 
-    api_key, profile = await _social_analytics_auth(request, user)
-
     days = _PERIOD_DAYS.get(period or "", 30)
     window_start = (datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
                     if start_date else datetime.now(timezone.utc) - timedelta(days=days))
+
+    try:
+        api_key, profile = await _social_analytics_auth(request, user)
+    except HTTPException as exc:
+        # Cloud user who never connected a social account: the profile is
+        # only created on "connect socials", so there is nothing published
+        # to measure. Answer the empty card instead of a 409.
+        if exc.status_code != 409:
+            raise
+        return {"profile_username": None, **social_metrics.summarise([], window_start),
+                "refreshing": False}
     # A post published in the window can only have been captured after it.
     params = {"user": profile, "since": window_start.strftime("%Y-%m-%d"), "limit": 200}
     if end_date:
