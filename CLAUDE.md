@@ -102,4 +102,4 @@ Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detectio
 - Before pushing, run locally what CI runs: `pytest tests/ -v` and `npm run build` (+ `npm run lint`) in `dashboard/`.
 - After every `git push`, wait for the commit's workflow and confirm it is green: `ci-wait` if available, or `gh run watch $(gh run list -c $(git rev-parse HEAD) -L1 --json databaseId -q ".[0].databaseId") --exit-status`.
 - If it is red: fix, push, check again. Never report the task as done with a red CI.
-- Every push to `main` redeploys; batch small commits (tests, docs) with the next real change when possible.
+- Every push to `main` redeploys the API; the dashboard app redeploys only when the push changes `dashboard/`. Batch small commits (tests, docs) with the next real change when possible.
