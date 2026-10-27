@@ -9,11 +9,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies
-# Copy and install Python dependencies
 COPY requirements.txt requirements-billing.txt ./
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip
+# torch from PyPI bundles ~16 CUDA/triton wheels (several GB) even when nothing
+# will ever use a GPU. CPU builds take the same versions from PyTorch's CPU
+# index first; requirements.txt then sees them as already satisfied (keep the
+# two pins in step with requirements.txt).
+ARG GPU=0
+RUN if [ "$GPU" != "1" ]; then \
+      pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+        torch==2.11.0 torchvision==0.26.0; \
+    fi
 RUN pip install --no-cache-dir -r requirements.txt
 # Cloud (paid mode) deps: installed always so one image serves both modes; they
 # are only imported when BILLING_ENABLED is set. Harmless/unused in self-host.
@@ -23,7 +31,6 @@ RUN pip install --no-cache-dir -r requirements-billing.txt
 # container runtime injects the driver. cuBLAS 12 + cuDNN 9 for CTranslate2
 # (faster-whisper CUDA), onnx-asr + onnxruntime-gpu for Parakeet. Adds ~2GB,
 # so the default CPU image stays slim.
-ARG GPU=0
 RUN if [ "$GPU" = "1" ]; then \
       pip install --no-cache-dir \
         "nvidia-cublas-cu12<13" "nvidia-cudnn-cu12>=9,<10" \
