@@ -73,7 +73,8 @@ def _print_clips(result):
     for i, clip in enumerate(clips):
         title = clip.get("title") or clip.get("video_title_for_youtube_short") or f"clip {i}"
         print(f"[{i}] {title}")
-        print(f"    {_absolutize(clip.get('video_url') or '')}")
+        # Cloud: download_url is signed and opens without the API key.
+        print(f"    {clip.get('download_url') or _absolutize(clip.get('video_url') or '')}")
 
 
 def cmd_process(args):

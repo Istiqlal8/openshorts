@@ -85,7 +85,9 @@ Ingest (yt-dlp or upload) → transcription (word timestamps) → scene detectio
 **Agent access**
 - MCP stdio: swap `sys.stdout` for stderr **before importing `app`**, and enter the app lifespan.
 - Webhook URLs go through `security_utils.assert_public_url` at submit AND at delivery.
-- API-key auth can never manage keys, consent to OAuth, touch billing or delete the account (`get_session_user_required`). OAuth tokens are ordinary `osk_` keys.
+- API-key auth can never manage keys, consent to OAuth, touch billing or delete the account (`get_session_user_required`). OAuth tokens are ordinary `osk_` keys that carry their scope (`cloud/scopes.py`): a new MCP tool endpoint joins `_MCP_ROUTES`.
+- Cloud `/videos` and `/thumbnails` answer only to a signature, the owner's media token or the owner's credentials (`app._authorize_media`). Any media URL handed outside the dashboard (MCP, webhook, API) goes through `_signed_media_url` / `media_auth.sign_absolute_url`; a new job-like directory writes `.owner`.
+- The Google callback redirects with a single-use code bound to the dashboard's `cc` challenge, never the session JWT (`/api/auth/exchange`).
 - yt-dlp and server-side scrapes run inside `ssrf_guard.guarded()`: redirects and DNS answers are checked at connect time, not only the submitted URL.
 
 **Billing, account, privacy**

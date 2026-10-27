@@ -39,13 +39,13 @@ from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
-from . import database, api_keys
+from . import database, api_keys, scopes
 from .config import settings
 from .models import OAuthClient, OAuthCode, ApiKey
 
 router = APIRouter()
 
-SCOPE = "openshorts"
+SCOPE = scopes.MCP_SCOPE
 CODE_TTL = timedelta(minutes=10)
 MAX_REDIRECT_URIS = 10
 
@@ -351,7 +351,7 @@ async def consent(payload: ConsentRequest, request: Request):
         session.add(OAuthCode(
             code_hash=hash_code(code), client_id=client.id, user_id=user.id,
             redirect_uri=payload.redirect_uri, code_challenge=payload.code_challenge,
-            scope=payload.scope or SCOPE, expires_at=_now() + CODE_TTL))
+            scope=scopes.normalise(payload.scope), expires_at=_now() + CODE_TTL))
         await session.commit()
     return {"redirect": add_query(payload.redirect_uri, code=code, state=payload.state)}
 
@@ -392,12 +392,13 @@ async def token(request: Request):
             select(OAuthClient).where(OAuthClient.id == client_id))).scalar_one_or_none()
         row.used_at = _now()
 
+        granted = scopes.normalise(row.scope)
         raw, key_hash, prefix = api_keys.generate_key()
-        session.add(ApiKey(user_id=row.user_id, key_hash=key_hash, prefix=prefix,
-                           name=f"{(client.client_name if client else 'MCP client')[:50]} · connected via OAuth"))
+        session.add(ApiKey(user_id=row.user_id, key_hash=key_hash, prefix=prefix, scope=granted,
+                           name=f"{(client.client_name if client else 'MCP client')[:50]} {scopes.OAUTH_KEY_NAME_SUFFIX}"))
         await session.commit()
 
-    return JSONResponse({"access_token": raw, "token_type": "bearer", "scope": row.scope or SCOPE},
+    return JSONResponse({"access_token": raw, "token_type": "bearer", "scope": granted},
                         headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"})
 
 

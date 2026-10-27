@@ -9,6 +9,7 @@
 """
 import hashlib
 import hmac
+import re
 import secrets
 from datetime import datetime, timezone, timedelta
 from typing import Optional
@@ -19,8 +20,8 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, func
 
 from .config import settings
-from . import config, database, metering, email_policy
-from .models import User, MagicLinkToken, UploadPostProfile, SignupAttribution
+from . import config, database, metering, email_policy, scopes
+from .models import User, MagicLinkToken, UploadPostProfile, SignupAttribution, LoginCode
 
 router = APIRouter()
 
@@ -30,6 +31,9 @@ MAGIC_TTL_MINUTES = 15
 MAGIC_RATE_LIMIT = 3          # per email
 MAGIC_RATE_LIMIT_IP = 10      # per IP, any email — bots rotate addresses, not IPs
 MAGIC_RATE_WINDOW_MIN = 15
+# The Google sign-in code: traded once, by POST, within this window.
+LOGIN_CODE_TTL_MINUTES = 5
+_CHALLENGE_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 # Only accept attribution for an account this young. Both sign-in flows post it
 # right after the redirect, so anything older is a returning user whose "source"
 # would be their re-entry, not their sign-up.
@@ -114,9 +118,18 @@ async def get_current_user_optional(request: Request) -> Optional[CurrentUser]:
     api_token = token if api_keys.looks_like_key(token) else request.headers.get("X-API-Key", "")
 
     if api_keys.looks_like_key(api_token):
-        user_id = await api_keys.user_id_for_key(api_token)
-        if user_id is None:
+        principal = await api_keys.key_principal(api_token)
+        if principal is None:
             return None
+        user_id, scope = principal
+        if not scopes.allows(scope, request.method, request.url.path):
+            # An OAuth token only reaches what its consent covered. Loud
+            # rather than anonymous: a None here would read as "sign in".
+            print(f"🔒 Scoped key refused: {request.method} {request.url.path} (scope {scope})")
+            raise HTTPException(status_code=403, detail=(
+                f"This token was issued to an MCP client (scope '{scope}') and cannot "
+                "call this endpoint. Use the MCP tools, or create an API key in the "
+                "dashboard for full API access."))
         async with database.session() as session:
             return await _load_current_user(session, user_id)
 
@@ -275,6 +288,8 @@ async def purge_stale_magic_tokens():
         async with session.begin():
             await session.execute(
                 delete(MagicLinkToken).where(MagicLinkToken.created_at < cutoff))
+            await session.execute(
+                delete(LoginCode).where(LoginCode.expires_at < _now() - timedelta(days=1)))
 
 
 @router.post("/api/auth/magic-link/verify")
@@ -304,6 +319,64 @@ async def verify_magic_link(payload: MagicVerifyRequest):
                 user.last_login_at = _now()
             user_id, user_email = user.id, user.email
 
+        token = issue_jwt(user_id, user_email)
+        cu = await _load_current_user(session, user_id)
+    return {"token": token, "user": {"id": str(user_id), "email": user_email, "entitled": cu.entitled}}
+
+
+# --------------------------------------------------------------------------- #
+# Google sign-in code exchange
+# --------------------------------------------------------------------------- #
+def valid_challenge(value) -> bool:
+    return isinstance(value, str) and bool(_CHALLENGE_RE.match(value))
+
+
+def challenge_for(verifier: str) -> str:
+    import base64
+    return base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+
+
+async def create_login_code(user_id, challenge: str) -> str:
+    """Mint the single-use code the OAuth callback redirects with."""
+    raw = secrets.token_urlsafe(32)
+    async with database.session() as session:
+        async with session.begin():
+            session.add(LoginCode(
+                code_hash=hashlib.sha256(raw.encode()).hexdigest(), user_id=user_id,
+                challenge=challenge,
+                expires_at=_now() + timedelta(minutes=LOGIN_CODE_TTL_MINUTES)))
+    return raw
+
+
+class LoginExchangeRequest(BaseModel):
+    code: str
+    verifier: str
+
+
+@router.post("/api/auth/exchange")
+async def exchange_login_code(payload: LoginExchangeRequest):
+    """Trade the Google callback's code for a session JWT. Needs the verifier
+    the dashboard kept in this browser's sessionStorage when it started the
+    sign-in, so a code someone else obtained cannot sign this browser in."""
+    bad = HTTPException(status_code=400, detail="This sign-in has expired. Please sign in again.")
+    if not payload.code or len(payload.code) > 200 or not (43 <= len(payload.verifier or "") <= 128):
+        raise bad
+    code_hash = hashlib.sha256(payload.code.encode()).hexdigest()
+    async with database.session() as session:
+        async with session.begin():
+            row = (await session.execute(
+                select(LoginCode).where(LoginCode.code_hash == code_hash).with_for_update()
+            )).scalar_one_or_none()
+            if row is None or row.used_at is not None or row.expires_at < _now():
+                raise bad
+            if not hmac.compare_digest(challenge_for(payload.verifier), row.challenge):
+                raise bad
+            row.used_at = _now()
+            user = await session.get(User, row.user_id)
+            if user is None:
+                raise bad
+            user_id, user_email = user.id, user.email
         token = issue_jwt(user_id, user_email)
         cu = await _load_current_user(session, user_id)
     return {"token": token, "user": {"id": str(user_id), "email": user_email, "entitled": cu.entitled}}

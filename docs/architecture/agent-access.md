@@ -67,6 +67,14 @@ it by **minting an ordinary `osk_` key** named after the client and returning it
 as the access token. No new auth path, no refresh tokens: the key shows up in
 Account → API keys and revoking it disconnects the app. The `/mcp` 401 carries
 `WWW-Authenticate: Bearer resource_metadata=...` so clients find the flow.
+The key carries the granted scope (`api_keys.scope`, `cloud/scopes.py`). The only
+scope is `openshorts`, the default every client asks for (unknown scopes are
+dropped, not refused); it reaches `/mcp`, the endpoints the MCP tools call
+in-process and the download paths, and anything else is a 403 naming the
+scope. OAuth keys minted before the column are recognised by their name
+suffix. Hand-made keys have no scope and keep the whole API. A new MCP tool
+calling a new endpoint must add it to `scopes._MCP_ROUTES` (a test reads the
+tool code and fails otherwise).
 `oauth_codes` is in `USER_OWNED_TABLES`; `oauth_clients` deliberately not.
 Registration is capped per client IP (`OAUTH_REGISTRATIONS_PER_HOUR`, 429
 `slow_down`): a client registers once per connection, the cap only stops one
@@ -81,6 +89,21 @@ stuck in a loop. Agent upload slots (`POST /api/uploads`) are capped at
 Fired once per job from `run_job_wrapper` after the R2 archive so the payload can
 carry durable download links; survives redeploys via the resume manifest.
 `PUBLIC_API_URL` sets the absolute-URL base when behind a proxy.
+
+## Media links (`/videos`, `/thumbnails`; `media_auth.py`, `app._authorize_media`)
+
+Cloud mode serves a job's files only to a request that has a path signature
+(`?exp=&sig=`, 24 h, `MEDIA_URL_TTL_SECONDS`), the owner's media token (`?mt=`
+or the `os_media` HttpOnly cookie, both from `POST /api/media-token`, 12 h) or
+the owner's own `Authorization` / `X-API-Key`. Owner: live job record, the
+`.owner` sidecar (clip, SaaSShorts and thumbnail directories all write one),
+then the `projects` row. Everything handed outside the dashboard is signed:
+MCP `video_url` / `download_url`, webhook `video_url`, and a per-clip
+`download_url` in `GET /api/status`. The dashboard appends `mt` in
+`getApiUrl`. Bare links to jobs created before `MEDIA_LEGACY_CUTOFF` keep
+working until `MEDIA_LEGACY_UNTIL` (links sent before signing existed).
+Self-host is open. The R2 library links are separate: public objects behind an
+unguessable key.
 
 Jobs sent with an `osk_` key (REST, MCP, OAuth clients) do not trigger the
 clips-ready email: the caller polls or gets the webhook. The job records

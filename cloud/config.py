@@ -420,9 +420,10 @@ class Settings:
         fixes that and puts the bytes on Cloudflare's network instead of a single
         long path out of Hetzner (measured to the same client: 90 KB/s).
 
-        Objects under it are public. That matches the capability model already in
-        production for /videos/{job_id}/... (unauthenticated, the UUID is the
-        capability); anything stricter needs a Worker checking a signed token.
+        Objects under it are public: an unguessable key is the capability.
+        /videos/{job_id}/... no longer works that way (signed links or the
+        owner, app._authorize_media); doing the same here needs a Worker
+        checking a signed token.
         """
         return os.environ.get("R2_PUBLIC_BASE", "").strip().rstrip("/")
 

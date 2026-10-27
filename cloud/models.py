@@ -64,6 +64,23 @@ class MagicLinkToken(Base):
     )
 
 
+class LoginCode(Base):
+    """A single-use code the Google callback hands the dashboard instead of the
+    session JWT itself (which used to ride in the redirect's URL hash, where
+    analytics and browser history could see it). The dashboard trades it for
+    the JWT by POST, proving with ``challenge`` that it is the same browser
+    that started the sign-in, so a code mailed to someone else signs nobody
+    in. Only the sha256 of the code is stored; it lives a few minutes."""
+    __tablename__ = "login_codes"
+    code_hash = Column(Text, primary_key=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    challenge = Column(Text, nullable=False)   # base64url(sha256(verifier))
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Subscription(Base):
     __tablename__ = "subscriptions"
     id = Column(UUID(as_uuid=True), primary_key=True, default=_uuid)
@@ -165,6 +182,9 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     revoked_at = Column(DateTime(timezone=True), nullable=True)
+    # OAuth-issued keys carry the scope granted at consent (cloud/scopes.py);
+    # NULL is a key the user made by hand, which reaches the whole API.
+    scope = Column(Text, nullable=True)
 
 
 class UploadPostProfile(Base):

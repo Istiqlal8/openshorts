@@ -113,7 +113,7 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
   // Fetch actor gallery on mount
   useEffect(() => {
     setLoadingGallery(true);
-    fetch(getApiUrl('/api/saasshorts/actor-gallery'))
+    apiFetch('/api/saasshorts/actor-gallery')
       .then(res => res.ok ? res.json() : { images: [] })
       .then(data => setActorGallery(data.images || []))
       .catch(() => {})
@@ -1028,7 +1028,7 @@ export default function SaaShortsTab({ geminiApiKey, elevenLabsKey, falKey, uplo
                         const data = await res.json();
                         setActorOptions(data.images || []);
                         // Refresh gallery to include newly uploaded actors
-                        const galRes = await fetch(getApiUrl('/api/saasshorts/actor-gallery'));
+                        const galRes = await apiFetch('/api/saasshorts/actor-gallery');
                         if (galRes.ok) {
                           const galData = await galRes.json();
                           setActorGallery(galData.images || []);

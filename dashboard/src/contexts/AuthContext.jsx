@@ -10,6 +10,25 @@ import { apiFetch, apiJson, getToken, setToken, clearToken } from '../lib/api';
 import { track, identify, reset as resetAnalytics } from '../lib/analytics';
 import { report as reportAttribution } from '../lib/attribution';
 import { readPendingPlan } from '../lib/pendingPlan';
+import { ensureMediaToken, clearMediaToken } from '../lib/mediaToken';
+
+// Google sign-in: the verifier for the code the callback returns. Kept in
+// sessionStorage (this tab only) so a sign-in link opened anywhere else — a
+// code or token someone sent you — signs nobody in.
+const GOOGLE_LOGIN_KEY = 'os_google_login';
+const GOOGLE_LOGIN_MAX_AGE_MS = 15 * 60 * 1000;
+
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+const readGoogleLogin = () => {
+  try {
+    const pending = JSON.parse(sessionStorage.getItem(GOOGLE_LOGIN_KEY) || 'null');
+    sessionStorage.removeItem(GOOGLE_LOGIN_KEY);
+    if (pending && Date.now() - pending.at < GOOGLE_LOGIN_MAX_AGE_MS) return pending;
+  } catch (_) { /* ignore */ }
+  return null;
+};
 
 const AuthContext = createContext(null);
 // eslint-disable-next-line react-refresh/only-export-components
@@ -25,6 +44,8 @@ export function AuthProvider({ children }) {
     if (!getToken()) { setMe(null); return null; }
     try {
       const data = await apiJson('/api/me');
+      // Before the user is set: the first players rendered need the token.
+      await ensureMediaToken(data?.user?.id);
       setMe(data);
       // Same profileId (user uuid) the server-side events use.
       identify(data?.user, { plan: data?.plan || 'free' });
@@ -32,12 +53,14 @@ export function AuthProvider({ children }) {
     } catch (e) {
       // Stale/invalid token: drop it and fall back to anonymous BYOK.
       clearToken();
+      clearMediaToken();
       setMe(null);
       return null;
     }
   }, []);
 
-  // Handle auth redirect hashes: #/auth/verify?ml=... and #/auth/callback?token=...
+  // Handle auth redirect hashes: #/auth/verify?ml=... and #/auth/callback?code=...
+  // (?token=... from an API older than the code exchange, briefly).
   const handleAuthHash = useCallback(async () => {
     const hash = window.location.hash || '';
     const match = hash.match(/^#\/auth\/(verify|callback)\??(.*)$/);
@@ -49,15 +72,25 @@ export function AuthProvider({ children }) {
     let destination = '#app';
     try {
       if (kind === 'callback') {
+        // Scrub the code/token from the URL immediately (replaceState, no new
+        // history entry) so it isn't left reachable via Back or analytics.
+        try {
+          window.history.replaceState(null, document.title,
+            window.location.pathname + window.location.search);
+        } catch (_) { /* ignore */ }
+        const pending = readGoogleLogin();
+        const code = params.get('code');
         const token = params.get('token');
-        if (token) {
+        if (code && pending?.verifier) {
+          const data = await apiJson('/api/auth/exchange', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, verifier: pending.verifier }),
+          });
+          if (data.token) setToken(data.token);
+        } else if (token && pending) {
+          // Only for a sign-in this tab started (see GOOGLE_LOGIN_KEY).
           setToken(token);
-          // Scrub the token from the URL immediately (replaceState, no new
-          // history entry) so the bearer token isn't left reachable via Back.
-          try {
-            window.history.replaceState(null, document.title,
-              window.location.pathname + window.location.search);
-          } catch (_) { /* ignore */ }
         }
       } else if (kind === 'verify') {
         const ml = params.get('ml');
@@ -143,12 +176,25 @@ export function AuthProvider({ children }) {
     await refreshMe();
   }, [refreshMe]);
 
-  const loginWithGoogle = useCallback(() => {
-    window.location.href = getApiUrl('/api/auth/google');
+  const loginWithGoogle = useCallback(async () => {
+    let query = '';
+    try {
+      const raw = new Uint8Array(32);
+      crypto.getRandomValues(raw);
+      const verifier = b64url(raw);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+      sessionStorage.setItem(GOOGLE_LOGIN_KEY, JSON.stringify({ verifier, at: Date.now() }));
+      query = `?cc=${b64url(digest)}`;
+    } catch (_) {
+      // No WebCrypto (insecure context): mark the sign-in as ours anyway.
+      try { sessionStorage.setItem(GOOGLE_LOGIN_KEY, JSON.stringify({ at: Date.now() })); } catch (__) { /* ignore */ }
+    }
+    window.location.href = getApiUrl(`/api/auth/google${query}`);
   }, []);
 
   const logout = useCallback(() => {
     clearToken();
+    clearMediaToken();
     setMe(null);
     resetAnalytics();
   }, []);

@@ -79,7 +79,9 @@ where status is `queued`, `processing`, `completed` or `failed`. `result.clips`
 appears once completed, each entry carrying `title`,
 `video_title_for_youtube_short`, `video_description_for_tiktok`,
 `video_description_for_instagram`, `start`, `end` and `video_url`. A relative
-`video_url` is relative to the API base.
+`video_url` is relative to the API base and, on the hosted service, needs the
+same API key header to download; each clip also carries `download_url`, an
+absolute link signed for 24 hours that works without it.
 
 Poll every 30 to 60 seconds. Prefer a webhook.
 

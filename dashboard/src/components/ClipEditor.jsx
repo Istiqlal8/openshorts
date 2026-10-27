@@ -4,7 +4,7 @@ import {
     AlertCircle, Undo2, Redo2, ChevronsRight, ChevronsLeft,
     PanelLeft, PanelLeftClose, Film,
 } from 'lucide-react';
-import { getApiUrl } from '../config';
+import { getApiUrl, withParam } from '../config';
 import { apiFetch, apiJson, QuotaError, openQuotaWall } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -866,7 +866,7 @@ export default function ClipEditor({ jobId, clipIndex, clipTitle, onClose, onRer
             setRenderedFraming(data.framing || 'auto');
             setFraming(data.framing || 'auto');
             dispatch({ type: 'init', segments: data.recipe.segments.map((s) => ({ ...s })) });
-            setPreviewUrl(`${getApiUrl(data.new_video_url)}?t=${Date.now()}`);
+            setPreviewUrl(withParam(getApiUrl(data.new_video_url), 't', Date.now()));
             onRerendered?.(clipIndex, data);
             refreshMe();
         } catch (e) {

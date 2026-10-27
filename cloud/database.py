@@ -22,6 +22,8 @@ _ADDITIVE_COLUMNS = (
     "CREATE INDEX IF NOT EXISTS ix_usage_job_id ON usage_ledger (job_id)",
     # cancellation_feedback shipped without it; rows before it are all cancels.
     "ALTER TABLE cancellation_feedback ADD COLUMN IF NOT EXISTS outcome VARCHAR(16)",
+    # Scope of an OAuth-issued API key (cloud/scopes.py); NULL = hand-made key.
+    "ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS scope TEXT",
 )
 
 

@@ -2461,7 +2461,8 @@ async def _webhook_clip_entries(job_id, job):
         entries.append({
             "index": i,
             "title": clip.get('title') or clip.get('video_title_for_youtube_short'),
-            "video_url": f"{base}{rel}" if rel.startswith("/") and base else rel,
+            # Signed: a webhook consumer has no session to show /videos.
+            "video_url": _signed_media_url(rel, base) if rel.startswith("/") else rel,
         })
     if BILLING_ENABLED and job.get('user_id'):
         try:
@@ -2709,6 +2710,179 @@ app.add_middleware(
     expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
 )
 
+# --- Who may read /videos and /thumbnails ------------------------------------
+# A job id used to be the whole lock on a job's clips and on the untouched
+# source sitting next to them. In cloud mode a request now needs one of:
+#   * a path signature (?exp=&sig=, media_auth.sign_media_url): what the MCP
+#     tools, the webhook payload and the API's download_url hand out;
+#   * the owner's media token (?mt= or the os_media cookie, /api/media-token):
+#     what the dashboard's <video>/<img> tags carry;
+#   * the owner's own Authorization / X-API-Key header (agents, curl).
+# Bare links to jobs older than MEDIA_LEGACY_CUTOFF keep working until
+# MEDIA_LEGACY_UNTIL: those went out in webhooks and MCP answers before any of
+# this existed. Self-host (no billing) stays open, as before.
+_MEDIA_LEGACY_CUTOFF = media_auth.parse_instant(media_auth.MEDIA_LEGACY_CUTOFF)
+_MEDIA_LEGACY_UNTIL = media_auth.parse_instant(media_auth.MEDIA_LEGACY_UNTIL)
+# job_id -> (owner uid or None, created_at epoch or None, cached_at). Owners
+# never change, so a hit is kept; a miss is re-asked after a minute (the
+# Project row appears when the job completes).
+_media_project_cache: Dict[str, tuple] = {}
+_MEDIA_PROJECT_CACHE_MAX = 5000
+_MEDIA_PROJECT_MISS_TTL = 60.0
+_media_legacy_logged: set = set()
+
+
+def _media_secret() -> str:
+    if not BILLING_ENABLED:
+        return ""
+    return (_cloud_config.settings.jwt_secret or "") if _cloud_config else ""
+
+
+def _write_owner_marker(directory: str, user_id) -> None:
+    """``.owner`` sidecar: lets /videos (and the account purge) find the owner
+    of a directory after a restart has emptied the in-memory stores."""
+    if user_id is None:
+        return
+    try:
+        os.makedirs(directory, exist_ok=True)
+        with open(os.path.join(directory, ".owner"), "w") as f:
+            f.write(str(user_id))
+    except OSError as e:
+        print(f"⚠️ Could not write owner marker in {os.path.basename(directory)}: {e}")
+
+
+def _read_owner_marker(directory: str) -> Optional[str]:
+    try:
+        with open(os.path.join(directory, ".owner")) as f:
+            return f.read().strip() or None
+    except OSError:
+        return None
+
+
+async def _media_project(job_id: str):
+    """(owner, created_at) of the Project row for ``job_id``, cached."""
+    now = time.time()
+    hit = _media_project_cache.get(job_id)
+    if hit is not None and (hit[0] is not None or now - hit[2] < _MEDIA_PROJECT_MISS_TTL):
+        return hit[0], hit[1]
+    owner = created = None
+    if BILLING_ENABLED and _JOB_ID_RE.match(job_id or ""):
+        try:
+            from sqlalchemy import select
+            from cloud.models import Project
+            from cloud import database as cloud_db
+            async with cloud_db.session() as s:
+                row = (await s.execute(
+                    select(Project.user_id, Project.created_at).where(Project.job_id == job_id)
+                )).first()
+            if row is not None:
+                owner = str(row[0])
+                created = row[1].timestamp() if row[1] is not None else None
+        except Exception as e:
+            print(f"⚠️ /videos owner lookup failed: {e}")
+            return None, None
+    if len(_media_project_cache) >= _MEDIA_PROJECT_CACHE_MAX:
+        _media_project_cache.clear()
+    _media_project_cache[job_id] = (owner, created, now)
+    return owner, created
+
+
+async def _media_owner(kind: str, segment: str) -> Optional[str]:
+    """The user who owns ``/<kind>/<segment>/...``, or None if nobody we know."""
+    def _uid(record):
+        owner = record.get("user_id") if isinstance(record, dict) else None
+        return str(owner) if owner is not None else None
+
+    if kind == "thumbnails":
+        owner = _uid(thumbnail_sessions.get(segment))
+        return owner or _read_owner_marker(os.path.join(THUMBNAILS_DIR, segment))
+    owner = _uid(jobs.get(segment))
+    if owner is None and segment.startswith("saas_"):
+        owner = _uid(saas_jobs.get(segment[len("saas_"):]))
+    if owner is None:
+        owner = _read_owner_marker(os.path.join(OUTPUT_DIR, segment))
+    if owner is None:
+        owner, _ = await _media_project(segment)
+    return owner
+
+
+async def _media_legacy_ok(segment: str) -> bool:
+    """A bare link to a job made before signing existed, inside the grace."""
+    if _MEDIA_LEGACY_UNTIL is None or time.time() >= _MEDIA_LEGACY_UNTIL:
+        return False
+    if _MEDIA_LEGACY_CUTOFF is None:
+        return False
+    owner, created = await _media_project(segment)
+    return owner is not None and created is not None and created < _MEDIA_LEGACY_CUTOFF
+
+
+def _media_denied():
+    return HTTPException(status_code=403, detail=(
+        "This media link is missing its signature or has expired. Fetch a fresh "
+        "link (get_job_status / list_clips, or GET /api/status/{job_id} and use "
+        "download_url), or send your API key in the Authorization header."))
+
+
+async def _authorize_media(kind: str, path: str, scope) -> None:
+    """``authorize`` hook of the /videos and /thumbnails mounts."""
+    secret = _media_secret()
+    if not secret:
+        return
+    request = Request(scope)
+    params = request.query_params
+    cleaned = path.replace("\\", "/").strip("/")
+    sig = params.get("sig")
+    if sig and media_auth.verify_path_signature(f"{kind}/{cleaned}", params.get("exp"), sig, secret):
+        return
+    segment = cleaned.split("/", 1)[0]
+    owner = await _media_owner(kind, segment)
+    if owner is not None:
+        for candidate in (params.get("mt"), request.cookies.get(media_auth.MEDIA_COOKIE_NAME)):
+            if candidate and media_auth.verify_user_token(candidate, secret) == owner:
+                return
+        if request.headers.get("authorization") or request.headers.get("x-api-key"):
+            user = await _user_from_request(request)
+            if user is not None and str(user.id) == owner:
+                return
+    if kind == "videos" and await _media_legacy_ok(segment):
+        if segment not in _media_legacy_logged and len(_media_legacy_logged) < 10000:
+            _media_legacy_logged.add(segment)
+            print(f"🔓 Unsigned /videos link to a pre-signing job served ({segment[:8]}…)")
+        return
+    raise _media_denied()
+
+
+def _signed_media_url(url_path: str, base: str = "") -> str:
+    """A ``/videos`` or ``/thumbnails`` path, signed when there is a secret,
+    absolute when ``base`` is given. Unchanged in self-host."""
+    secret = _media_secret()
+    if not secret:
+        return f"{base.rstrip('/')}{url_path}" if base and url_path.startswith("/") else url_path
+    return media_auth.sign_absolute_url(base, url_path, secret)
+
+
+@app.post("/api/media-token")
+async def issue_media_token(request: Request):
+    """A short-lived token for the caller's own media, for the places that
+    cannot send a header: the dashboard appends it to /videos and /thumbnails
+    URLs (``mt=``) and also gets it as an HttpOnly cookie on this host."""
+    secret = _media_secret()
+    if not secret:
+        return {"token": None, "expires_in": None}
+    user = await _user_from_request(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    ttl = media_auth.MEDIA_TOKEN_TTL_SECONDS
+    token = media_auth.mint_user_token(user.id, secret, ttl)
+    response = JSONResponse({"token": token, "expires_in": ttl,
+                             "expires_at": int(time.time()) + ttl})
+    public = os.environ.get("PUBLIC_API_URL", "")
+    response.set_cookie(media_auth.MEDIA_COOKIE_NAME, token, max_age=ttl, path="/",
+                        httponly=True, samesite="lax",
+                        secure=public.startswith("https://") or request.url.scheme == "https")
+    return response
+
+
 # Mount static files for serving videos. A miss under /videos/<job_id>/ first
 # tries to bring the job back from R2 (see restoring_static.py): the players
 # of a reopened project used to 404 while the transcript requests were still
@@ -2718,6 +2892,7 @@ import media_auth
 app.mount("/videos", RestoringStaticFiles(
     directory=OUTPUT_DIR,
     guard=_media_guard,
+    authorize=lambda path, scope: _authorize_media("videos", path, scope),
     restorer=lambda job_id: _restore_for_public_path(job_id)), name="videos")
 
 # Mount static files for serving thumbnails
@@ -2725,7 +2900,8 @@ THUMBNAILS_DIR = os.path.join(OUTPUT_DIR, "thumbnails")
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
 # Same allowlist as /videos: images only, never a session's scratch files.
 app.mount("/thumbnails", RestoringStaticFiles(
-    directory=THUMBNAILS_DIR, guard=media_auth.is_servable), name="thumbnails")
+    directory=THUMBNAILS_DIR, guard=media_auth.is_servable,
+    authorize=lambda path, scope: _authorize_media("thumbnails", path, scope)), name="thumbnails")
 
 
 def _safe_under(base_dir: str, user_rel_path: str) -> Optional[str]:
@@ -3834,6 +4010,25 @@ def _job_view_from_disk(job_id):
     }
 
 
+def _with_download_urls(result):
+    """The job result plus, per clip, a signed absolute ``download_url``: what
+    an API caller hands to a downloader that cannot send its API key. A copy,
+    never the live record (the dashboard keeps editing that one)."""
+    secret = _media_secret()
+    clips = (result or {}).get('clips') if isinstance(result, dict) else None
+    if not secret or not clips:
+        return result
+    base = os.environ.get("PUBLIC_API_URL", "").rstrip("/")
+    out = dict(result)
+    out['clips'] = []
+    for clip in clips:
+        rel = clip.get('video_url') if isinstance(clip, dict) else None
+        if isinstance(rel, str) and rel.startswith("/videos/"):
+            clip = {**clip, 'download_url': _signed_media_url(rel, base)}
+        out['clips'].append(clip)
+    return out
+
+
 def _presented_status(job_id, job):
     """A job we hold as 'queued' while draining is really the next instance's:
     if it has started it, say so instead of showing a queue that never moves."""
@@ -3859,7 +4054,7 @@ async def get_status(job_id: str, request: Request):
         "logs": _logs_view[0],
         # When each line arrived (epoch seconds, parallel to "logs"), or None.
         "log_times": _logs_view[1],
-        "result": job.get('result'),
+        "result": _with_download_urls(job.get('result')),
         # Position in line and a rough wait while the job is still queued.
         "queue": queue_snapshot(job_id),
         # Set when only the first part of the source was clipped (quota wall
@@ -4184,10 +4379,11 @@ async def _restore_job_files(job_id: str, proj, user_id: str) -> bool:
 
 async def _restore_for_public_path(job_id: str) -> bool:
     """Restorer for the /videos mount: a miss under /videos/<job_id>/ pulls
-    the project back from R2 for its owner, without a session. Those files
-    are public by job id already (the mount has no auth), so this grants
-    nothing new; it only stops a reopened project's players from 404ing
-    while the API side is still restoring it. True means "look again".
+    the project back from R2 for its owner. It only runs once the mount's
+    authorize hook has accepted the request (a signature, the owner's media
+    token or credentials), so it grants nothing new; it stops a reopened
+    project's players from 404ing while the API side is still restoring it.
+    True means "look again".
     """
     if not BILLING_ENABLED or not _JOB_ID_RE.match(job_id or ""):
         return False
@@ -5230,9 +5426,12 @@ async def _check_render_body(request, body):
             f"Render too large: at most {RENDER_MAX_FRAMES} frames, 120 fps and "
             f"{RENDER_MAX_SIDE}px a side."))
     if BILLING_ENABLED:
-        video_url = str(props.get("videoUrl") or "")
+        # The dashboard's media URLs carry its media token (?mt=); the render
+        # service reads the file from disk, so the query is dropped here.
+        video_url = str(props.get("videoUrl") or "").split("#", 1)[0].split("?", 1)[0]
         if not re.search(rf"(^|//[^/]+)/videos/{job_id}/[^/?#]+$", video_url):
             raise HTTPException(status_code=400, detail="videoUrl must be a file of this job")
+        props["videoUrl"] = video_url
         record = _job_record(job_id)
         if record is None:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -6742,8 +6941,10 @@ async def thumbnail_upload(
         raise
 
     # Initialize session
+    _thumb_owner = await _owner_id(request)
+    _write_owner_marker(os.path.join(THUMBNAILS_DIR, session_id), _thumb_owner)
     thumbnail_sessions[session_id] = {
-        "user_id": await _owner_id(request),
+        "user_id": _thumb_owner,
         "video_path": video_path,
         "transcript_event": transcript_event,
         "transcript_ready": False,
@@ -6880,6 +7081,8 @@ async def thumbnail_analyze(
         # Store/update session context
         if session_id not in thumbnail_sessions:
             thumbnail_sessions[session_id] = {"user_id": await _owner_id(request)}
+            _write_owner_marker(os.path.join(THUMBNAILS_DIR, session_id),
+                                thumbnail_sessions[session_id]["user_id"])
 
         thumbnail_sessions[session_id].update({
             "context": result.get("transcript_summary", ""),
@@ -6985,6 +7188,8 @@ async def thumbnail_titles(
                 "language": "en",
                 "conversation": []
             }
+            _write_owner_marker(os.path.join(THUMBNAILS_DIR, session_id),
+                                thumbnail_sessions[session_id]["user_id"])
         else:
             await _assert_job_owner(request, thumbnail_sessions[session_id])
         return {"session_id": session_id, "titles": [req.title]}
@@ -7482,15 +7687,19 @@ async def saasshorts_actor_upload(request: Request, file: UploadFile = File(...)
             raise HTTPException(status_code=400, detail="File too small to be a valid image")
 
         upload_id = uuid.uuid4().hex[:8]
-        upload_dir = os.path.join(OUTPUT_DIR, "actor_uploads")
+        # Its own directory with an owner marker, like generated actors: a
+        # shared "actor_uploads" folder had no owner for /videos to check.
+        dir_name = f"saas_actors_{uuid.uuid4()}"
+        upload_dir = os.path.join(OUTPUT_DIR, dir_name)
         os.makedirs(upload_dir, exist_ok=True)
+        _write_owner_marker(upload_dir, await _owner_id(request))
         filename = f"custom_{upload_id}.png"
         file_path = os.path.join(upload_dir, filename)
 
         with open(file_path, "wb") as f:
             f.write(content)
 
-        return {"url": f"/videos/actor_uploads/{filename}"}
+        return {"url": f"/videos/{dir_name}/{filename}"}
 
     except HTTPException:
         raise
@@ -7514,6 +7723,7 @@ async def saasshorts_actor_options(
         job_id = str(uuid.uuid4())
         out_dir = os.path.join(OUTPUT_DIR, f"saas_actors_{job_id}")
         os.makedirs(out_dir, exist_ok=True)
+        _write_owner_marker(out_dir, await _owner_id(request))
 
         loop = asyncio.get_running_loop()
         import functools
@@ -7531,8 +7741,9 @@ async def saasshorts_actor_options(
         if req.product_description:
             desc += f" (holding {req.product_description})"
         urls = []
+        owner_tag = _actor_owner_tag(await _owner_id(request))
         for p in paths:
-            s3_url = upload_actor_to_s3(p, description=desc)
+            s3_url = upload_actor_to_s3(p, description=desc, owner_tag=owner_tag)
             if s3_url:
                 urls.append(s3_url)
             else:
@@ -7880,12 +8091,23 @@ h1{{font-size:22px;font-weight:700;margin-bottom:8px}}
 </body></html>'''
 
 
+def _actor_owner_tag(user_id) -> Optional[str]:
+    """Opaque per-user folder name for private actor images (no user id in
+    the bucket). None off cloud, where actors stay in the shared gallery."""
+    secret = _media_secret()
+    if not secret or user_id is None:
+        return None
+    return hmac.new(secret.encode(), f"actor:{user_id}".encode(),
+                    hashlib.sha256).hexdigest()[:24]
+
+
 @app.get("/api/saasshorts/actor-gallery")
-async def saasshorts_actor_gallery():
-    """List all previously generated actor images from public S3."""
+async def saasshorts_actor_gallery(request: Request):
+    """The shared actor gallery, plus the signed-in caller's own actors."""
     try:
+        owner_tag = _actor_owner_tag(await _owner_id(request))
         loop = asyncio.get_running_loop()
-        images = await loop.run_in_executor(None, list_actor_gallery)
+        images = await loop.run_in_executor(None, list_actor_gallery, owner_tag)
         return {"images": images}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -7932,6 +8154,12 @@ async def saasshorts_generate(
             old_dir = saas_jobs[req.retry_job_id]["output_dir"]
         else:
             old_dir = _safe_under(OUTPUT_DIR, f"saas_{req.retry_job_id}")
+            # After a restart only the marker remembers whose directory it is.
+            disk_owner = _read_owner_marker(old_dir) if old_dir else None
+            if BILLING_ENABLED and disk_owner is not None:
+                caller = await _owner_id(request)
+                if caller is None or str(caller) != disk_owner:
+                    raise HTTPException(status_code=404, detail="Not found")
 
         if old_dir and os.path.isdir(old_dir):
             job_id = req.retry_job_id
@@ -7949,6 +8177,7 @@ async def saasshorts_generate(
                 "result": None,
                 "output_dir": job_output_dir,
             }
+            _write_owner_marker(job_output_dir, saas_jobs[job_id]["user_id"])
 
     if not reused:
         job_id = str(uuid.uuid4())
@@ -7961,6 +8190,7 @@ async def saasshorts_generate(
             "result": None,
             "output_dir": job_output_dir,
         }
+        _write_owner_marker(job_output_dir, saas_jobs[job_id]["user_id"])
 
     # If user selected a pre-generated actor, resolve it to a local path
     selected_actor_path = None
@@ -7990,7 +8220,19 @@ async def saasshorts_generate(
                 pass
         else:
             # Sanitize against traversal — the client controls selected_actor_url.
-            src = _safe_under(OUTPUT_DIR, req.selected_actor_url.replace("/videos/", "").lstrip("/"))
+            rel_actor = req.selected_actor_url.split("?", 1)[0].replace("/videos/", "").lstrip("/")
+            src = _safe_under(OUTPUT_DIR, rel_actor)
+            if src and BILLING_ENABLED:
+                # Only the caller's own files. The shared pre-marker folder of
+                # custom uploads has no owner to check and is let through.
+                segment = rel_actor.split("/", 1)[0]
+                owner = await _media_owner("videos", segment)
+                caller = saas_jobs.get(job_id, {}).get("user_id")
+                if owner is None:
+                    if segment != "actor_uploads":
+                        src = None
+                elif caller is None or str(caller) != owner:
+                    src = None
             if src and os.path.exists(src):
                 selected_actor_path = src
 

@@ -460,6 +460,36 @@ def _source_segments(clip):
     return []
 
 
+def _media_secret() -> str:
+    if not _billing_enabled():
+        return ""
+    try:
+        from cloud.config import settings
+        return settings.jwt_secret or ""
+    except Exception:
+        return ""
+
+
+def _clip_url(base, rel):
+    """Absolute and, in cloud mode, signed (media_auth): the agent and whatever
+    it hands the link to (a downloader, Upload-Post) have no session."""
+    if not rel.startswith("/"):
+        return rel
+    secret = _media_secret()
+    if secret:
+        import media_auth
+        return media_auth.sign_absolute_url(base, rel, secret)
+    return f"{base}{rel}" if base else rel
+
+
+def _with_download_url(data):
+    """A fetchable link next to the relative ``new_video_url`` an edit returns."""
+    rel = data.get("new_video_url") if isinstance(data, dict) else None
+    if isinstance(rel, str) and rel.startswith("/"):
+        data["download_url"] = _clip_url(os.environ.get("PUBLIC_API_URL", "").rstrip("/"), rel)
+    return data
+
+
 def _clip_summaries(job_id, result):
     base = os.environ.get("PUBLIC_API_URL", "").rstrip("/")
     out = []
@@ -471,7 +501,7 @@ def _clip_summaries(job_id, result):
             "duration_seconds": (round(clip["end"] - clip["start"], 1)
                                  if isinstance(clip.get("start"), (int, float))
                                  and isinstance(clip.get("end"), (int, float)) else None),
-            "video_url": f"{base}{rel}" if base and rel.startswith("/") else rel,
+            "video_url": _clip_url(base, rel),
             "source_segments": _source_segments(clip),
             "youtube_title": clip.get("video_title_for_youtube_short"),
             "tiktok_description": clip.get("video_description_for_tiktok"),
@@ -532,7 +562,7 @@ async def _tool_add_subtitles(client, args):
     resp = await _job_call(client, "POST", "/api/subtitle", args["job_id"], json=body)
     if resp.status_code >= 400:
         return _api_error(resp), True
-    return resp.json(), False
+    return _with_download_url(resp.json()), False
 
 
 async def _tool_recut_clip(client, args):
@@ -544,7 +574,7 @@ async def _tool_recut_clip(client, args):
     resp = await _job_call(client, "POST", "/api/clip/rerender", args["job_id"], json=body)
     if resp.status_code >= 400:
         return _api_error(resp), True
-    return resp.json(), False
+    return _with_download_url(resp.json()), False
 
 
 async def _tool_publish_clip(client, args):
