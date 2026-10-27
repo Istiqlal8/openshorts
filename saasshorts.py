@@ -150,7 +150,16 @@ Be thorough. Use REAL data from your search results, not made-up information."""
 
 
 def scrape_website(url: str) -> dict:
-    """Scrape a SaaS website to extract key content for analysis."""
+    """Scrape a SaaS website to extract key content for analysis.
+
+    Only public addresses resolve while it runs (ssrf_guard): the per-hop
+    checks below look the host up once, the connection looks it up again."""
+    import ssrf_guard
+    with ssrf_guard.guarded():
+        return _scrape_website(url)
+
+
+def _scrape_website(url: str) -> dict:
     from bs4 import BeautifulSoup
     from security_utils import assert_public_url
 

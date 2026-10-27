@@ -299,7 +299,29 @@ async def client_info(client_id: str):
     client = await _load_client(client_id)
     if client is None:
         raise HTTPException(status_code=404, detail="Unknown client_id.")
-    return {"client_id": client.id, "client_name": client.client_name}
+    try:
+        hosts = sorted({urlsplit(u).hostname or "" for u in json.loads(client.redirect_uris)} - {""})
+    except ValueError:
+        hosts = []
+    # The name is whatever the registrant typed; the host the code goes to is
+    # what the user should judge the request by.
+    return {"client_id": client.id, "client_name": client.client_name, "redirect_hosts": hosts}
+
+
+class DenyRequest(BaseModel):
+    client_id: str
+    redirect_uri: str
+    state: Optional[str] = None
+
+
+@router.post("/api/oauth/deny")
+async def deny(payload: DenyRequest):
+    """The user said no: where to send the browser. Built here, from a
+    redirect_uri registered for the client, never from the page's own URL
+    (which anyone can link to with any redirect_uri in it)."""
+    await _validate_authorize({"client_id": payload.client_id, "redirect_uri": payload.redirect_uri,
+                               "response_type": "code", "code_challenge": "-"})
+    return {"redirect": add_query(payload.redirect_uri, error="access_denied", state=payload.state)}
 
 
 class ConsentRequest(BaseModel):
@@ -315,8 +337,10 @@ class ConsentRequest(BaseModel):
 @router.post("/api/oauth/authorize")
 async def consent(payload: ConsentRequest, request: Request):
     """The user said yes on the dashboard: mint the code, return where to go."""
-    from .auth import get_current_user_required
-    user = await get_current_user_required(request)
+    # A session only: an API key consenting would mint itself a successor
+    # that survives its own revocation (API keys never manage keys).
+    from .api_keys import _session_user
+    user = await _session_user(request)
     params = payload.model_dump(exclude_none=True)
     client, err = await _validate_authorize(params)
     if err:
@@ -356,7 +380,8 @@ async def token(request: Request):
 
     async with database.session() as session:
         row = (await session.execute(
-            select(OAuthCode).where(OAuthCode.code_hash == hash_code(code)))).scalar_one_or_none()
+            select(OAuthCode).where(OAuthCode.code_hash == hash_code(code))
+            .with_for_update())).scalar_one_or_none()
         if row is None or row.used_at is not None or row.expires_at < _now():
             return _oauth_error(400, "invalid_grant", "Unknown, used or expired code.")
         if row.client_id != client_id or (redirect_uri and row.redirect_uri != redirect_uri):

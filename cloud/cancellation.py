@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from . import analytics, database
-from .auth import get_current_user_required
+from .auth import get_current_user_required, get_session_user_required
 from .models import CancellationFeedback, Subscription
 
 router = APIRouter()
@@ -156,7 +156,7 @@ async def _offer_for(sub) -> Optional[dict]:
 
 @router.get("/api/billing/retention-offer")
 async def retention_offer(request: Request):
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     sub = await _renewing_sub(user.id)
     offer = await _offer_for(sub)
     return {"eligible": bool(offer), **(offer or {})}
@@ -164,7 +164,7 @@ async def retention_offer(request: Request):
 
 @router.post("/api/billing/retention-offer/accept")
 async def accept_retention_offer(body: CancelRequest, request: Request):
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     if body.reason not in CANCEL_REASONS:
         raise HTTPException(status_code=422, detail="Pick a reason from the list.")
     sub = await _renewing_sub(user.id)
@@ -208,7 +208,7 @@ async def accept_retention_offer(body: CancelRequest, request: Request):
 
 @router.post("/api/billing/resume")
 async def resume_subscription(request: Request):
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     async with database.session() as session:
         sub = (await session.execute(
             select(Subscription).where(Subscription.user_id == user.id)
@@ -238,7 +238,7 @@ async def resume_subscription(request: Request):
 
 @router.post("/api/billing/cancel")
 async def cancel_subscription(body: CancelRequest, request: Request):
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     if body.reason not in CANCEL_REASONS:
         raise HTTPException(status_code=422, detail="Pick a reason from the list.")
     sub = await _renewing_sub(user.id)

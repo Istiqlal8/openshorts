@@ -334,3 +334,37 @@ class TestSafetyCap:
         main, path = source
         main.cap_source_duration(path, 2.2, safety=True)   # 132 s + 30 s tolerance
         assert self._seconds(path) >= 149
+
+
+def test_render_requests_are_bounded_and_scoped(monkeypatch):
+    """The render service trusts its caller: it writes under OUTPUT_DIR/<jobId>
+    and loads videoUrl in a headless browser."""
+    import uuid as _uuid
+    from fastapi import HTTPException as _HTTPException
+    import app as _app
+
+    jid = str(_uuid.uuid4())
+    ok = {"jobId": jid, "clipIndex": 0, "props": {
+        "videoUrl": f"/videos/{jid}/clip.mp4", "durationInFrames": 900,
+        "fps": 30, "width": 1080, "height": 1920}}
+
+    async def _owner_ok(request, record):
+        return None
+    monkeypatch.setattr(_app, "BILLING_ENABLED", True)
+    monkeypatch.setattr(_app, "_assert_job_owner", _owner_ok)
+    monkeypatch.setitem(_app.jobs, jid, {"user_id": "u1"})
+    import asyncio as _asyncio
+    _asyncio.run(_app._check_render_body(None, ok))
+
+    def bad(**over):
+        body = {**ok, "props": {**ok["props"]}}
+        for k, v in over.items():
+            (body if k == "jobId" else body["props"])[k] = v
+        with pytest.raises(_HTTPException):
+            _asyncio.run(_app._check_render_body(None, body))
+
+    bad(jobId="../../etc")
+    bad(videoUrl="http://169.254.169.254/latest/meta-data")
+    bad(videoUrl=f"/videos/{_uuid.uuid4()}/clip.mp4")
+    bad(durationInFrames=10**9)
+    bad(width=100000)

@@ -20,7 +20,7 @@ from .config import (settings, PLAN_MINUTES, TRIAL_DAYS, SUBSCRIPTION_LOOKUP_KEY
                      TOPUP_LOOKUP_KEYS, new_subscriber_label)
 from . import analytics, config, database
 from .models import User, Subscription, CreditTopup, StripeEvent, SignupAttribution
-from .auth import get_current_user_required
+from .auth import get_current_user_required, get_session_user_required
 
 router = APIRouter()
 
@@ -247,7 +247,7 @@ async def end_trial(request: Request):
     Used when a trialing user hits the trial minute cap and chooses to
     activate their plan right away. The subscription webhook flips status→active
     (and thus the full ``minutes_per_period`` allowance) once Stripe confirms."""
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     async with database.session() as session:
         sub = (await session.execute(
             select(Subscription).where(Subscription.user_id == user.id)
@@ -265,7 +265,7 @@ async def end_trial(request: Request):
 
 @router.post("/api/billing/portal")
 async def create_portal(request: Request):
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     customer_id = await ensure_stripe_customer(user.id, user.email)
     session = await asyncio.to_thread(lambda: stripe.billing_portal.Session.create(
         customer=customer_id, return_url=f"{settings.frontend_url}/#/account",
@@ -328,7 +328,7 @@ async def list_invoices(request: Request):
     """Legal invoices for the signed-in user: ``{"invoices": [{doc_number,
     doc_date, total, currency, status, public_url, pdf_url}]}``. Free users
     (no Stripe customer yet) get an empty list, not an error."""
-    user = await get_current_user_required(request)
+    user = await get_session_user_required(request, "API keys cannot manage billing. Sign in to the dashboard.")
     if not settings.agentledger_api_key:
         raise HTTPException(status_code=503, detail="Billing backend not configured")
     async with database.session() as session:
@@ -362,6 +362,9 @@ async def list_invoices(request: Request):
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
+    if not settings.stripe_webhook_secret:
+        # An empty secret is an HMAC anyone can compute: refuse instead.
+        raise HTTPException(status_code=503, detail="Webhook not configured")
     try:
         event = stripe.Webhook.construct_event(payload, sig, settings.stripe_webhook_secret)
     except Exception:
@@ -389,7 +392,12 @@ async def handle_event(event: dict):
     obj = event["data"]["object"]
     created = _ts(event["created"])
 
-    if etype == "checkout.session.completed" and obj.get("mode") == "payment":
+    if (etype in ("checkout.session.completed", "checkout.session.async_payment_succeeded")
+            and obj.get("mode") == "payment"
+            and obj.get("payment_status") in (None, "paid", "no_payment_required")):
+        # A delayed method (bank debit) completes the session unpaid and
+        # reports the money later in async_payment_succeeded; credit then.
+        # _apply_topup is idempotent per checkout session.
         await _apply_topup(obj)
     elif etype in ("customer.subscription.created", "customer.subscription.updated"):
         await _upsert_subscription(obj, created)
@@ -463,10 +471,10 @@ async def _apply_topup(session_obj: dict):
     total = session_obj.get("amount_total")
     if total:
         amount_txt = f" ({_money(total, session_obj.get('currency'))})"
-    from .alerts import send_admin_alert
+    from .alerts import send_admin_alert, user_ref
     await send_admin_alert(
         f"💰 Top-up purchased{amount_txt}",
-        f"{buyer_email or 'A user'} bought +{minutes} minutes.",
+        f"{user_ref(user_id)} bought +{minutes} minutes.",
     )
     # Mirror the sale into OpenPanel, on the same profile the browser identifies.
     analytics.track_revenue(
@@ -561,9 +569,6 @@ async def _upsert_subscription(sub_obj: dict, event_created: datetime):
             # Purchase signals: brand-new subscription, and trial -> paid conversion.
             is_new_sub = row is None
             prev_status = row.status if row else None
-            buyer_email = (await s.execute(
-                select(User.email).where(User.id == user_id)
-            )).scalar_one_or_none()
             end_dt = _ts(end)
             values = dict(
                 stripe_subscription_id=sub_obj["id"],
@@ -596,21 +601,21 @@ async def _upsert_subscription(sub_obj: dict, event_created: datetime):
         asyncio.create_task(_unmark_after_upgrade(user_id))
     label = new_subscriber_label(now_status) if is_new_sub else None
     if label:
-        from .alerts import send_admin_alert
+        from .alerts import send_admin_alert, user_ref
         await send_admin_alert(
             "🎉 New subscriber",
-            f"{buyer_email or 'A user'} started the {plan} ({interval}) plan.\nStatus: {label}.",
+            f"{user_ref(user_id)} started the {plan} ({interval}) plan.\nStatus: {label}.",
         )
     elif prev_status == "trialing" and now_status == "active":
-        from .alerts import send_admin_alert
+        from .alerts import send_admin_alert, user_ref
         await send_admin_alert(
             "💳 Trial converted to paid",
-            f"{buyer_email or 'A user'} is now a paying {plan} ({interval}) subscriber. 🎉",
+            f"{user_ref(user_id)} is now a paying {plan} ({interval}) subscriber. 🎉",
         )
 
     # Churn alert to the admin the moment a subscription is set to cancel.
     if just_canceled:
-        from .alerts import send_admin_alert
+        from .alerts import send_admin_alert, user_ref
         from .config import VIDEO_RETENTION_GRACE_DAYS
         # Cancelled in the Stripe portal, not the dashboard flow (which flips
         # the row itself and sends its own alert). The portal's reason, if it
@@ -692,18 +697,18 @@ async def _notify_invoice_paid(invoice_obj: dict):
         "subscription_update": "plan change",
     }.get(reason, reason or "payment")
 
-    email = None
+    payer_id = None
     async with database.session() as s:
         cust = invoice_obj.get("customer")
         if cust:
-            email = (await s.execute(
-                select(User.email).where(User.stripe_customer_id == cust)
+            payer_id = (await s.execute(
+                select(User.id).where(User.stripe_customer_id == cust)
             )).scalar_one_or_none()
 
-    from .alerts import send_admin_alert
+    from .alerts import send_admin_alert, user_ref
     await send_admin_alert(
         f"💵 Payment received: {money}",
-        f"{email or 'A customer'} — {kind}.",
+        f"{user_ref(payer_id) if payer_id else 'A customer'} — {kind}.",
     )
 
 

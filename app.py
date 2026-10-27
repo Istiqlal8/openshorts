@@ -303,11 +303,13 @@ def _maybe_send_quota_email(user):
 _editor_action_times: dict = {}  # owner id -> [monotonic timestamps]
 
 
-def _check_editor_rate(owner_id):
+def _check_editor_rate(owner_id, bucket=""):
+    """``bucket`` gives an action its own hourly budget (same size), so a
+    preview that precedes an edit does not halve what the edits get."""
     if not BILLING_ENABLED or not owner_id:
         return
     now = time.monotonic()
-    times = _editor_action_times.setdefault(str(owner_id), [])
+    times = _editor_action_times.setdefault(f"{bucket}:{owner_id}" if bucket else str(owner_id), [])
     times[:] = [t for t in times if now - t < 3600]
     if len(times) >= _cloud_config.EDITOR_ACTIONS_PER_HOUR:
         raise HTTPException(status_code=429,
@@ -2721,7 +2723,9 @@ app.mount("/videos", RestoringStaticFiles(
 # Mount static files for serving thumbnails
 THUMBNAILS_DIR = os.path.join(OUTPUT_DIR, "thumbnails")
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
-app.mount("/thumbnails", StaticFiles(directory=THUMBNAILS_DIR), name="thumbnails")
+# Same allowlist as /videos: images only, never a session's scratch files.
+app.mount("/thumbnails", RestoringStaticFiles(
+    directory=THUMBNAILS_DIR, guard=media_auth.is_servable), name="thumbnails")
 
 
 def _safe_under(base_dir: str, user_rel_path: str) -> Optional[str]:
@@ -4892,6 +4896,9 @@ async def get_clip_scenes(job_id: str, clip_index: int, request: Request):
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[job_id]
     await _assert_job_owner(request, job)
+    # An hourly editor budget of its own: each call cuts the clip from
+    # source, runs scene detection and encodes a preview.
+    _check_editor_rate(await _owner_id(request), bucket="scenes")
 
     output_dir = os.path.join(OUTPUT_DIR, job_id)
     json_files = glob.glob(os.path.join(output_dir, "*_metadata.json"))
@@ -5197,12 +5204,48 @@ RENDER_SERVICE_URL = os.getenv("RENDER_SERVICE_URL", "http://renderer:3100")
 # render id -> owner user id (None for self-host / BYOK), for the status poll.
 _render_owners: Dict[str, Optional[str]] = {}
 
+RENDER_MAX_FRAMES = int(os.getenv("RENDER_MAX_FRAMES", str(60 * 60 * 5)))  # 5 min at 60 fps
+RENDER_MAX_SIDE = int(os.getenv("RENDER_MAX_SIDE", "2160"))
+
+
+async def _check_render_body(request, body):
+    """What the render service may be asked to do, decided here: it trusts
+    its caller, writes under OUTPUT_DIR/<jobId> and loads ``videoUrl`` in a
+    headless browser. In cloud mode the job must be the caller's and the
+    video one of its files; everywhere the size of the render is bounded."""
+    if not isinstance(body, dict) or not isinstance(body.get("props"), dict):
+        raise HTTPException(status_code=400, detail="Invalid render request")
+    job_id = str(body.get("jobId") or "")
+    if not _JOB_ID_RE.match(job_id):
+        raise HTTPException(status_code=400, detail="jobId must be a job id")
+    props = body["props"]
+    try:
+        frames, fps = int(props.get("durationInFrames")), float(props.get("fps"))
+        width, height = int(props.get("width")), int(props.get("height"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid render dimensions")
+    if not (0 < frames <= RENDER_MAX_FRAMES and 0 < fps <= 120
+            and 0 < width <= RENDER_MAX_SIDE and 0 < height <= RENDER_MAX_SIDE):
+        raise HTTPException(status_code=413, detail=(
+            f"Render too large: at most {RENDER_MAX_FRAMES} frames, 120 fps and "
+            f"{RENDER_MAX_SIDE}px a side."))
+    if BILLING_ENABLED:
+        video_url = str(props.get("videoUrl") or "")
+        if not re.search(rf"(^|//[^/]+)/videos/{job_id}/[^/?#]+$", video_url):
+            raise HTTPException(status_code=400, detail="videoUrl must be a file of this job")
+        record = _job_record(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+        await _assert_job_owner(request, record)
+
+
 @app.post("/api/render")
 async def proxy_render(request: Request):
     """Proxy render requests to the Node.js Remotion render service."""
     await require_managed_entitlement(request)
     import httpx
     body = await request.json()
+    await _check_render_body(request, body)
     render_minutes = _cloud_config.RENDER_MINUTES if BILLING_ENABLED else 0
     reservation_id = await reserve_managed_action(
         request, render_minutes, str(uuid.uuid4()), "render")
@@ -5610,6 +5653,7 @@ async def remove_subtitles(req: RemoveSubtitlesRequest, request: Request):
         raise HTTPException(status_code=404, detail="Job not found")
     job = jobs[req.job_id]
     await _assert_job_owner(request, job)
+    _check_editor_rate(await _owner_id(request))
 
     output_dir = os.path.join(OUTPUT_DIR, req.job_id)
     json_files = glob.glob(os.path.join(output_dir, "*_metadata.json"))
@@ -5618,7 +5662,7 @@ async def remove_subtitles(req: RemoveSubtitlesRequest, request: Request):
     with open(json_files[0], 'r') as f:
         data = json.load(f)
     clips = data.get('shorts', [])
-    if req.clip_index >= len(clips):
+    if req.clip_index < 0 or req.clip_index >= len(clips):
         raise HTTPException(status_code=404, detail="Clip not found")
 
     filename = os.path.basename(
@@ -7929,8 +7973,9 @@ async def saasshorts_generate(
 
             def _fetch_actor():
                 # SSRF guard: block private / metadata hosts before fetching.
+                import ssrf_guard
                 safe_actor_url = assert_public_url(req.selected_actor_url)
-                with httpx.Client(timeout=30.0) as client:
+                with ssrf_guard.guarded(), httpx.Client(timeout=30.0) as client:
                     resp = client.get(safe_actor_url)
                 if resp.status_code != 200:
                     return None

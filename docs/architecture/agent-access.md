@@ -27,8 +27,11 @@
 `osk_...` tokens, sha256-stored, created in the dashboard account page.
 `cloud/auth.get_current_user_optional` accepts them (`Bearer osk_...` or
 `X-API-Key`) and resolves the owner, so metering, entitlement, plan priority and
-job ownership apply to agents with zero endpoint changes. Key management itself
-refuses API-key auth: a leaked key cannot mint replacements.
+job ownership apply to agents with zero endpoint changes. Key management, OAuth
+consent, account erasure and billing (cancel, resume, retention offer, end
+trial, Stripe portal, invoices) refuse API-key auth
+(`cloud/auth.get_session_user_required`): a leaked key cannot mint
+replacements nor touch money.
 
 ## MCP server (`mcp_server.py`, always mounted)
 
@@ -56,7 +59,10 @@ metadata under `/.well-known/`, accepts dynamic client registration
 (`POST /oauth/register`, public clients, PKCE S256 mandatory) and bounces
 `GET /oauth/authorize` to the dashboard consent screen (`#/oauth/authorize`),
 because the session JWT lives in localStorage on the frontend host. `POST
-/api/oauth/authorize` (session auth) mints the code; `POST /oauth/token` redeems
+/api/oauth/authorize` (session auth, never a key) mints the code, and Cancel asks
+`POST /api/oauth/deny` for the redirect: the consent page's own URL is whatever
+the link said, so it never navigates to a `redirect_uri` the API did not check
+against the client's registered ones. `POST /oauth/token` redeems
 it by **minting an ordinary `osk_` key** named after the client and returning it
 as the access token. No new auth path, no refresh tokens: the key shows up in
 Account → API keys and revoking it disconnects the app. The `/mcp` 401 carries

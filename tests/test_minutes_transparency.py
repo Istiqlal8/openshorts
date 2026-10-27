@@ -264,3 +264,51 @@ def test_failed_posts_are_logged_once_per_request(monkeypatch, capsys):
     app_module._log_post_failures("req-x", "failed", [])
     out = capsys.readouterr().out
     assert "req-ok" not in out and "platform=all status=failed" in out
+
+
+def _saturate_editor_budget(monkeypatch, key):
+    import time
+    from types import SimpleNamespace
+    monkeypatch.setattr(app_module, "BILLING_ENABLED", True)
+    monkeypatch.setattr(app_module, "_cloud_config", config)
+    now = time.monotonic()
+    monkeypatch.setattr(app_module, "_editor_action_times",
+                        {key: [now] * config.EDITOR_ACTIONS_PER_HOUR})
+
+    async def _noop(*a, **k):
+        return True
+
+    async def _owner(request):
+        return "u1"
+
+    async def _user(request):
+        return SimpleNamespace(id="u1")
+    monkeypatch.setattr(app_module, "require_managed_entitlement", _noop)
+    monkeypatch.setattr(app_module, "_ensure_job_files", _noop)
+    monkeypatch.setattr(app_module, "_owner_id", _owner)
+    monkeypatch.setattr(app_module, "_user_from_request", _user)
+    monkeypatch.setitem(app_module.jobs, "job-rl", {"user_id": "u1", "status": "completed"})
+
+
+def test_scene_listing_is_capped_per_hour(monkeypatch):
+    """Listing scenes cuts the clip from source and runs scene detection."""
+    from fastapi.testclient import TestClient
+    _saturate_editor_budget(monkeypatch, "scenes:u1")
+    r = TestClient(app_module.app).get("/api/clip/job-rl/0/scenes")
+    assert r.status_code == 429
+
+
+def test_scene_listing_has_its_own_budget(monkeypatch):
+    """Opening the framing editor must not eat the budget of the edits."""
+    from fastapi.testclient import TestClient
+    _saturate_editor_budget(monkeypatch, "u1")
+    r = TestClient(app_module.app).get("/api/clip/job-rl/0/scenes")
+    assert r.status_code != 429
+
+
+def test_caption_removal_is_capped_per_hour(monkeypatch):
+    from fastapi.testclient import TestClient
+    _saturate_editor_budget(monkeypatch, "u1")
+    r = TestClient(app_module.app).post("/api/subtitle/remove",
+                                        json={"job_id": "job-rl", "clip_index": 0})
+    assert r.status_code == 429

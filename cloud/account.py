@@ -168,6 +168,25 @@ async def _cancel_subscriptions(user_id) -> Optional[str]:
             # a hard error would trap the user: the one account that cannot be
             # deleted is the one Stripe already stopped billing.
             print(f"ℹ️  Subscription {row.stripe_subscription_id} already gone at Stripe: {e}")
+
+    # Our table keeps one row per user, but a customer can hold two live
+    # subscriptions at Stripe (a second checkout before the first webhook
+    # landed). The one without a row would keep charging a deleted account,
+    # so Stripe's own list is the authority here.
+    async with database.session() as session:
+        user = await session.get(User, user_id)
+        customer_id = user.stripe_customer_id if user else None
+    if customer_id:
+        done = {r.stripe_subscription_id for r in live}
+        listed = await asyncio.to_thread(lambda: stripe.Subscription.list(
+            customer=customer_id, status="all", limit=100))
+        for sub in listed.auto_paging_iter():
+            if sub["id"] in done or sub["status"] in ("canceled", "incomplete_expired"):
+                continue
+            try:
+                await asyncio.to_thread(lambda sid=sub["id"]: stripe.Subscription.cancel(sid))
+            except stripe.InvalidRequestError as e:
+                print(f"ℹ️  Subscription {sub['id']} already gone at Stripe: {e}")
     return plan
 
 

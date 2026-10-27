@@ -308,7 +308,8 @@ def _probe_with_proxies(url, proxies, strategies, static_errors, paid, ck_path):
             if proxy:
                 opts["proxy"] = proxy
             try:
-                with yt_dlp.YoutubeDL(opts) as ydl:
+                import ssrf_guard
+                with ssrf_guard.guarded(), yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(url, download=False)
                 duration = info.get("duration")
                 if duration:

@@ -136,3 +136,26 @@ class TestExpiredJobs:
         client, calls = self._client([True])
         asyncio.run(_tool_get_job_status(client, {"job_id": "j"}))
         assert calls == [("GET", "/api/status/j")]
+
+
+def test_ids_that_are_not_ids_never_reach_an_api_path():
+    """job_id / upload_id are spliced into REST paths; "../" or "?" in one
+    would address another endpoint with the caller's credentials."""
+    import mcp_server
+
+    called = []
+
+    async def impl(client, args):
+        called.append(args)
+        return {}, False
+
+    mcp_server._TOOL_IMPLS["__probe"] = impl
+    try:
+        for bad in ("../../api/billing/end-trial?", "a/b", "x?y=1", "", 5):
+            out, is_error = asyncio.run(mcp_server.call_tool(None, "__probe", {"job_id": bad}))
+            assert is_error and "Invalid job_id" in out["error"]
+        out, is_error = asyncio.run(mcp_server.call_tool(None, "__probe", {"upload_id": "../x"}))
+        assert is_error
+        assert called == []
+    finally:
+        mcp_server._TOOL_IMPLS.pop("__probe", None)

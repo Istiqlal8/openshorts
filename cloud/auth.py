@@ -141,6 +141,21 @@ async def get_current_user_required(request: Request) -> CurrentUser:
     return user
 
 
+async def get_session_user_required(request: Request,
+                                    detail: str = "Sign in to the dashboard to do this.") -> CurrentUser:
+    """The signed-in user, refusing API-key auth (``osk_``, OAuth tokens too).
+
+    For what an agent credential must never reach: money (cancel, resume,
+    end a trial, the Stripe portal, invoices) on top of keys and erasure,
+    which have their own copies of this check."""
+    from . import api_keys
+    auth = request.headers.get("Authorization", "")
+    if api_keys.looks_like_key(auth[7:].strip()) or api_keys.looks_like_key(
+            request.headers.get("X-API-Key", "")):
+        raise HTTPException(status_code=403, detail=detail)
+    return await get_current_user_required(request)
+
+
 # --------------------------------------------------------------------------- #
 # Magic link
 # --------------------------------------------------------------------------- #

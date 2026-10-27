@@ -68,7 +68,11 @@ def env(monkeypatch):
     async def _alert(subject, body):
         state.alerts.append((subject, body))
 
+    async def _session_user(request, detail=None):
+        return await _user(request)
+
     monkeypatch.setattr(cancellation, "get_current_user_required", _user)
+    monkeypatch.setattr(cancellation, "get_session_user_required", _session_user)
     monkeypatch.setattr(cancellation.database, "session", lambda: _Session(state.sub, state.added))
     monkeypatch.setattr(cancellation, "_stripe_cancel_at_period_end", _modify)
     monkeypatch.setattr(cancellation, "RETENTION_COUPON", "coupon_test")

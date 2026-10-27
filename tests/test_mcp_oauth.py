@@ -91,3 +91,48 @@ class TestDiscoveryEndpoints:
     def test_token_rejects_other_grants(self):
         r = self._client().post("/oauth/token", data={"grant_type": "client_credentials"})
         assert r.status_code == 400 and r.json()["error"] == "unsupported_grant_type"
+
+
+class TestConsentDecisions:
+    """The consent page's own URL is attacker-controlled (anyone can link to
+    it): Cancel must go where the API says, and only a session may consent."""
+
+    def _client(self, monkeypatch, redirect_uris=("https://claude.ai/api/mcp/auth_callback",)):
+        import json as _json
+        from types import SimpleNamespace
+
+        async def _load(client_id):
+            if client_id != "c1":
+                return None
+            return SimpleNamespace(id="c1", client_name="Claude",
+                                   redirect_uris=_json.dumps(list(redirect_uris)))
+        monkeypatch.setattr(mcp_oauth, "_load_client", _load)
+        app = FastAPI()
+        app.include_router(mcp_oauth.router)
+        return TestClient(app)
+
+    def test_deny_redirects_only_to_a_registered_uri(self, monkeypatch):
+        c = self._client(monkeypatch)
+        r = c.post("/api/oauth/deny", json={"client_id": "c1", "state": "s",
+                                            "redirect_uri": "https://claude.ai/api/mcp/auth_callback"})
+        assert r.status_code == 200
+        assert r.json()["redirect"] == "https://claude.ai/api/mcp/auth_callback?error=access_denied&state=s"
+        for bad in ("javascript:alert(document.domain)//", "https://evil.example/cb"):
+            r = c.post("/api/oauth/deny", json={"client_id": "c1", "redirect_uri": bad})
+            assert r.status_code == 400
+        r = c.post("/api/oauth/deny", json={"client_id": "nope",
+                                            "redirect_uri": "https://claude.ai/api/mcp/auth_callback"})
+        assert r.status_code == 400
+
+    def test_client_info_shows_where_access_goes(self, monkeypatch):
+        c = self._client(monkeypatch)
+        body = c.get("/api/oauth/client/c1").json()
+        assert body["redirect_hosts"] == ["claude.ai"]
+
+    def test_an_api_key_cannot_consent(self, monkeypatch):
+        c = self._client(monkeypatch)
+        r = c.post("/api/oauth/authorize",
+                   headers={"Authorization": "Bearer osk_" + "a" * 40},
+                   json={"client_id": "c1", "redirect_uri": "https://claude.ai/api/mcp/auth_callback",
+                         "code_challenge": "x" * 43})
+        assert r.status_code == 403

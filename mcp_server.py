@@ -22,6 +22,7 @@ serves the identical endpoint.)
 """
 import json
 import os
+import re
 from typing import Optional
 
 import httpx
@@ -570,10 +571,20 @@ _TOOL_IMPLS = {
 }
 
 
+_ID_ARGS = ("job_id", "upload_id")
+_ID_RE = re.compile(r"[A-Za-z0-9-]{1,64}")
+
+
 async def call_tool(request: Request, name: str, args: dict) -> tuple[dict, bool]:
     impl = _TOOL_IMPLS.get(name)
     if impl is None:
         return {"error": f"Unknown tool: {name}"}, True
+    # Ids are spliced into API paths: anything but an id shape could walk
+    # the path ("../") or add a query to another endpoint.
+    for key in _ID_ARGS:
+        value = (args or {}).get(key)
+        if value is not None and not (isinstance(value, str) and _ID_RE.fullmatch(value)):
+            return {"error": f"Invalid {key}."}, True
     try:
         async with _client(request) as client:
             return await impl(client, args or {})

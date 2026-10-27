@@ -83,6 +83,10 @@ async def google_callback(request: Request):
     google_sub = userinfo.get("sub")
     if not email:
         return RedirectResponse(f"{settings.frontend_url}/#/auth/callback?error=noemail")
+    # An unverified address would sign in to (and merge with) whatever
+    # account owns that email here.
+    if userinfo.get("email_verified") is False:
+        return RedirectResponse(f"{settings.frontend_url}/#/auth/callback?error=noemail")
 
     async with database.session() as session:
         async with session.begin():
