@@ -93,6 +93,18 @@ Speed at equal quality:
   4:2:0 H.264/HEVC without rotation, and only with `GPU_DECODE_MIN_FREE_MB`
   free on the card; any ffmpeg that fails on the card runs again on the CPU.
   Kill switches: `GPU_DECODE=0` (all), `GPU_DECODE_RENDER=0` (encodes only).
+- **One-pass GPU render** (`gpu_render` + `osrender/`, GPU image only): the
+  reframe render (`reframe_v2.encode_scenes`) runs as a single process that
+  keeps the frames on the card (NVDEC -> CUDA kernels -> NVENC) instead of one
+  ffmpeg per scene downloading every frame for crop/scale/blur on the CPU and
+  a concat. The layers come from the scenes' own filtergraphs
+  (`gpu_render.layers_from_graph`, which mirrors ffmpeg's even-coordinate
+  overlay/pad/crop and sendcmd's frame timing); output matches the ffmpeg path
+  at SSIM >= 0.97 per layout (`tests/test_gpu_render_equivalence.py`). It takes
+  an NVENC slot like `bin/ffmpeg`. Unreadable graph, unsupported source, no
+  binary or any failure: the scene-by-scene ffmpeg render, unchanged.
+  `GPU_RENDER=0` turns it off. Punch-in only renders whole here: ffmpeg's crop
+  ends the stream at the first size change a sendcmd makes.
 - **Sparse trajectory** (`reframe_v2._sparse_trajectory`, `SPARSE_TRAJECTORY`):
   the detectors look at one frame in `DETECT_STRIDE` plus scene starts, and only
   in TRACK scenes, so only those are scaled and piped (ffmpeg `select`). It

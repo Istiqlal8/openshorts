@@ -37,6 +37,22 @@ RUN if [ "$GPU" = "1" ]; then \
         onnx-asr onnxruntime-gpu; \
     fi
 
+# osrender (osrender/, Rust): renders a reframed clip in one pass on the GPU
+# (gpu_render.py). Only GPU builds compile it; the CPU image ships without it
+# and renders through ffmpeg. It links the same Debian FFmpeg libraries the
+# final stage installs, so both stages must stay on the same Debian release.
+FROM rust:1-slim-trixie AS osrender
+ARG GPU=0
+COPY osrender /src/osrender
+RUN mkdir -p /out && if [ "$GPU" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends \
+        pkg-config clang libclang-dev libavcodec-dev libavformat-dev libavutil-dev \
+        libavfilter-dev libavdevice-dev libswscale-dev libswresample-dev \
+      && rm -rf /var/lib/apt/lists/* \
+      && cd /src/osrender && cargo build --release --locked \
+      && cp target/release/osrender /out/; \
+    fi
+
 # Final stage
 FROM python:3.11-slim
 
@@ -82,6 +98,8 @@ ENV BGUTIL_SCRIPT_PATH=/opt/bgutil-provider/server/build/generate_once.js
 
 # Copy virtual env from builder
 COPY --from=builder /opt/venv /opt/venv
+# Empty on CPU builds.
+COPY --from=osrender /out/ /usr/local/bin/
 ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
