@@ -14,6 +14,15 @@ each at most once per account:
                           because this repository is public).
 * ``checkout_recovery`` — on ``checkout.session.expired`` (billing webhook),
                           with Stripe's recovery URL for the same cart.
+* ``paid_idle``         — a paying plan 3+ days into its period with nothing
+                          processed in it (and 5+ days left): the minutes and
+                          Autopilot, while there is still time to use them.
+                          Also goes to plans already set to cancel.
+* ``comeback``          — 3+ days after a subscription ended: the free monthly
+                          minutes are still theirs. No discount, on purpose.
+
+The two paid ones exist because most first-month cancels come from plans
+that never processed a minute after paying.
 
 The first three come from a loop (``TICK_SECONDS``) that sends at most
 ``BATCH`` per tick, so the backlog on the first deploy drains slowly instead
@@ -45,6 +54,9 @@ FIRST_CLIP_AFTER = timedelta(hours=24)
 FIRST_CLIP_UNTIL = timedelta(hours=72)
 WINBACK_AFTER = timedelta(hours=48)
 WINBACK_UNTIL = timedelta(days=7)
+PAID_IDLE_AFTER = timedelta(days=3)   # into the paid period
+PAID_IDLE_LEFT = timedelta(days=5)    # still left in it
+COMEBACK_AFTER = timedelta(days=3)    # after the subscription ended
 
 # Subscription states that mean "already a customer": no upsell, no nudges.
 # ``incomplete`` is left out on purpose: that is a Checkout whose first
@@ -111,8 +123,15 @@ def _processed():
 async def _candidates(kind: str, limit: int, now=None):
     """User rows due for ``kind`` right now (oldest first)."""
     now = now or _now()
-    q = select(User).where(_not_sent(kind), _not_customer(),
-                           User.marketing_opt_out.is_(False))
+    q = select(User).where(_not_sent(kind), User.marketing_opt_out.is_(False))
+    if kind in ("paid_idle", "comeback"):
+        # These two join the (one per user) subscription row and filter on its
+        # status directly; _not_customer() would correlate against that join.
+        # Comp plans (no Stripe subscription behind them) are not customers.
+        q = q.join(Subscription, Subscription.user_id == User.id).where(
+            ~Subscription.stripe_subscription_id.like("sub_comp%"))
+    else:
+        q = q.where(_not_customer())
     if kind == "welcome":
         q = q.where(User.created_at <= now - WELCOME_AFTER,
                     User.created_at >= now - WELCOME_UNTIL)
@@ -127,10 +146,28 @@ async def _candidates(kind: str, limit: int, now=None):
                                  UsageLedger.status == "committed"))
                      .scalar_subquery())
         q = q.where(first_job <= now - WINBACK_AFTER, first_job >= now - WINBACK_UNTIL)
+    elif kind == "paid_idle":
+        used = exists().where(and_(UsageLedger.user_id == User.id,
+                                   UsageLedger.job_type == "process",
+                                   UsageLedger.status.in_(("reserved", "committed")),
+                                   UsageLedger.created_at >= Subscription.current_period_start))
+        q = q.where(Subscription.status == "active",
+                    Subscription.current_period_start <= now - PAID_IDLE_AFTER,
+                    Subscription.current_period_end >= now + PAID_IDLE_LEFT,
+                    ~used)
+    elif kind == "comeback":
+        q = q.where(Subscription.status == "canceled",
+                    Subscription.last_event_at <= now - COMEBACK_AFTER)
     else:
         raise ValueError(kind)
     async with database.session() as s:
         return list((await s.execute(q.order_by(User.created_at.asc()).limit(limit))).scalars())
+
+
+async def _subscription(user_id):
+    async with database.session() as s:
+        return (await s.execute(select(Subscription).where(
+            Subscription.user_id == user_id))).scalar_one_or_none()
 
 
 async def _send(kind: str, user) -> bool:
@@ -147,6 +184,18 @@ async def _send(kind: str, user) -> bool:
         # A first video already processed (welcome sent late) has no grant left.
         if await metering.has_processed_before(user.id):
             first_video = 0
+    if kind == "paid_idle":
+        sub = await _subscription(user.id)
+        if sub is None or sub.status != "active":
+            return False
+        return await emails.send_paid_idle_email(
+            user.id, user.email, sub.minutes_per_period, sub.current_period_end,
+            bool(sub.cancel_at_period_end))
+    if kind == "comeback":
+        # The email is about the free minutes: only to accounts that get them.
+        if not metering.free_plan_eligible(user):
+            return False
+        return await emails.send_comeback_email(user.id, user.email, config.FREE_PLAN_MINUTES)
     if kind == "welcome":
         return await emails.send_welcome_email(user.id, user.email, first_video)
     if kind == "first_clip":
@@ -159,7 +208,7 @@ async def run_once(now=None) -> int:
     """One tick: send up to ``BATCH`` due emails. Returns how many went out."""
     budget = BATCH
     sent = 0
-    for kind in ("welcome", "first_clip", "winback"):
+    for kind in ("welcome", "first_clip", "winback", "paid_idle", "comeback"):
         if budget <= 0:
             break
         for user in await _candidates(kind, budget, now):

@@ -53,15 +53,24 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
   const sending = useRef(false);
 
   // Asked up front so the last step never waits on it; no answer means no offer.
+  // The same answer says whether a month on hold is on the table, and for
+  // which reasons (cloud/cancellation.PAUSE_REASONS).
+  const [pauseInfo, setPauseInfo] = useState(null);
+  const [paused, setPaused] = useState(null);
   useEffect(() => {
     apiJson('/api/billing/retention-offer')
-      .then((o) => { if (o?.eligible) setOffer(o); })
+      .then((o) => {
+        if (o?.eligible) setOffer(o);
+        if (o?.pause_eligible) setPauseInfo(o);
+      })
       .catch(() => {});
   }, []);
+  const pause = pauseInfo && (pauseInfo.pause_reasons || []).includes(reason) ? pauseInfo : null;
 
   useEffect(() => {
     if (step === 2 && offer) track('RetentionOfferShown', { props: { plan, reason } });
-  }, [step, offer]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (step === 2 && pause) track('PauseOfferShown', { props: { plan, reason } });
+  }, [step, offer, pause]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const feedback = () => JSON.stringify({
     reason,
@@ -86,6 +95,26 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
       setSaved(out);
     } catch (e) {
       setError(e?.detail || 'Could not apply the discount. Please try again or email info@openshorts.app.');
+    }
+    sending.current = false;
+    setBusy(false);
+  };
+
+  const acceptPause = async () => {
+    if (sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const out = await apiJson('/api/billing/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: feedback(),
+      });
+      track('PauseOfferAccepted', { props: { plan, reason } });
+      setPaused(out);
+    } catch (e) {
+      setError(e?.detail || 'Could not pause your plan. Please try again or email info@openshorts.app.');
     }
     sending.current = false;
     setBusy(false);
@@ -119,6 +148,24 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
   const shown = hover || rating;
   const months = offer?.months ? ` for the next ${offer.months} months` : '';
 
+  if (paused) {
+    return (
+      <Modal isOpen onClose={onCanceled} eyebrow="PLAN PAUSED" title="Next month is on us">
+        <div className="space-y-4 text-sm text-ink2">
+          <p>
+            Your plan runs as usual until <b className="text-ink">{fmtDate(paused.pause_from)}</b>.
+            Then it skips one month: <b className="text-ink">no charge</b>, your clips stay
+            where they are, and you still get the free minutes. After that it picks up again on its own.
+          </p>
+          <p>Need it sooner? Restart it from your account page any time.</p>
+          <div className="flex justify-end pt-1">
+            <button onClick={onCanceled} className="btn-primary px-4 py-2 text-xs">Done</button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   if (saved) {
     return (
       <Modal isOpen onClose={onCanceled} eyebrow="YOU'RE STAYING" title="Discount applied">
@@ -140,7 +187,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
   return (
     <Modal isOpen onClose={busy ? undefined : keep} eyebrow={`CANCEL PLAN · ${step + 1}/3`}
            title={['Why are you cancelling?', 'How was OpenShorts?',
-                   offer ? 'Before you go' : 'Confirm cancellation'][step]}>
+                   offer || pause ? 'Before you go' : 'Confirm cancellation'][step]}>
       {step === 0 && (
         <div className="space-y-4">
           <p className="text-sm text-muted">Your answer goes straight to the people building OpenShorts.</p>
@@ -201,6 +248,19 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
 
       {step === 2 && (
         <div className="space-y-4 text-sm text-ink2">
+          {pause && (
+            <div className="rounded-card border border-brass bg-brass/5 p-4 space-y-3">
+              <p className="text-ink">
+                Not using it right now? <b>Skip a month instead.</b> No charge from{' '}
+                {fmtDate(pause.pause_from)} for one month, your clips stay, and the plan
+                comes back by itself.
+              </p>
+              <button onClick={acceptPause} disabled={busy} className="btn-primary px-4 py-2 text-xs">
+                {busy && <Loader2 size={16} className="animate-spin" />}
+                Pause for a month
+              </button>
+            </div>
+          )}
           {offer && (
             <div className="rounded-card border border-brass bg-brass/5 p-4 space-y-3">
               <p className="text-ink">
@@ -214,7 +274,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
             </div>
           )}
           <p>
-            {offer ? 'If you still want to leave, your' : 'Your'}
+            {offer || pause ? 'If you still want to leave, your' : 'Your'}
             {' '}{plan ? <b className="text-ink capitalize">{plan}</b> : null} plan stays active until{' '}
             <b className="text-ink">{fmtDate(periodEnd)}</b>, with every minute you have left.
             You won't be charged again.
@@ -223,7 +283,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
           {error && <p className="text-danger">{error}</p>}
           <div className="flex items-center justify-between gap-2 pt-1">
             <button onClick={keep} disabled={busy}
-                    className={offer ? 'btn-quiet' : 'btn-primary px-4 py-2 text-xs'}>
+                    className={offer || pause ? 'btn-quiet' : 'btn-primary px-4 py-2 text-xs'}>
               {offer ? 'Keep my plan at full price' : 'Keep my plan'}
             </button>
             <button onClick={submit} disabled={busy} className="btn-danger px-4 py-2">

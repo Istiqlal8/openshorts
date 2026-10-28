@@ -168,6 +168,10 @@ async def create_checkout(body: CheckoutRequest, request: Request):
             raise HTTPException(status_code=409, detail=(
                 "Your last payment didn't go through, so we can't start a new plan "
                 "yet. Update your card under Manage billing and it resumes right away."))
+        if blocked == config.ON_HOLD:
+            raise HTTPException(status_code=409, detail=(
+                "Your plan is paused. Restart it from your account page "
+                "(Account → Restart now) to get your minutes back."))
         if blocked:
             raise HTTPException(
                 status_code=409,
@@ -557,7 +561,8 @@ async def _upsert_subscription(sub_obj: dict, event_created: datetime):
             # sub's update would otherwise overwrite the good row. Only let another
             # subscription take over when the stored one is no longer live.
             if row and row.stripe_subscription_id != sub_obj["id"]:
-                stored_live = row.status in ("active", "trialing", "past_due", "unpaid")
+                stored_live = row.status in ("active", "trialing", "past_due", "unpaid",
+                                             config.ON_HOLD)
                 incoming_live = sub_obj.get("status") in ("active", "trialing", "past_due")
                 if stored_live and not incoming_live:
                     return
@@ -570,10 +575,19 @@ async def _upsert_subscription(sub_obj: dict, event_created: datetime):
             is_new_sub = row is None
             prev_status = row.status if row else None
             end_dt = _ts(end)
+            # A month on hold from the cancel flow keeps Stripe's status
+            # 'active'; the hold window in the metadata says which period is
+            # the skipped one (config.subscription_status).
+            now_status = config.subscription_status(sub_obj, start)
+            meta = sub_obj.get("metadata") or {}
+            hold = {}
+            if "hold_from" in meta or "hold_until" in meta:
+                hold = {k: (_ts(int(meta[k])) if str(meta.get(k) or "").isdigit() else None)
+                        for k in ("hold_from", "hold_until")}
             values = dict(
                 stripe_subscription_id=sub_obj["id"],
                 stripe_price_id=price_id,
-                plan=plan, interval=interval, status=sub_obj["status"],
+                plan=plan, interval=interval, status=now_status, **hold,
                 minutes_per_period=minutes,
                 current_period_start=_ts(start),
                 current_period_end=end_dt,
@@ -593,7 +607,6 @@ async def _upsert_subscription(sub_obj: dict, event_created: datetime):
     # in the 30 days to 16-sep-2026), and the ones that do pay are announced
     # by the 'Payment received' alert on invoice.paid, which carries the
     # amount; a second message here would just be noise.
-    now_status = sub_obj["status"]
     if became_live(prev_status, now_status):
         # The clips this user already made on the free plan lose their
         # watermark now (cloud/videos): the upgrade modal promised exactly

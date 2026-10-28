@@ -64,7 +64,36 @@ BILLING_ATTENTION_STATES = ("past_due", "unpaid", "incomplete", "paused")
 # past_due/unpaid/paused, so a second subscription would double-bill. It is NOT
 # collecting on 'incomplete' (payment abandoned at 3DS/confirm, expired by Stripe
 # within 24h), so blocking that would only stop the retry.
-CHECKOUT_BLOCKING_STATES = ("active", "trialing", "past_due", "unpaid", "paused")
+CHECKOUT_BLOCKING_STATES = ("active", "trialing", "past_due", "unpaid", "paused", "on_hold")
+
+# "Pause for a month" from the cancel flow (cloud/cancellation). Stripe keeps
+# the subscription 'active' and voids the invoice of the skipped month
+# (pause_collection), so our row derives its own state from the hold window
+# stored in the subscription's metadata: a period that STARTS inside
+# [hold_from, hold_until) is the skipped one. 'on_hold' grants no plan minutes
+# (the account falls back to the free plan) but keeps the library durable, and
+# is distinct from Stripe's own 'paused' (a trial that ended without a card).
+ON_HOLD = "on_hold"
+# hold_until = hold_from + HOLD_DAYS: shorter than any monthly period, so the
+# period after the skipped one starts past the window and is charged again.
+HOLD_DAYS = 27
+
+
+def subscription_status(sub_obj: dict, period_start) -> str:
+    """Our status for a Stripe subscription whose current period starts at
+    ``period_start`` (unix): Stripe's own, or ON_HOLD inside the hold window.
+
+    Lives here (not in billing.py) so the test runs without the stripe SDK.
+    """
+    status = sub_obj.get("status")
+    meta = sub_obj.get("metadata") or {}
+    try:
+        hold_from, hold_until = int(meta.get("hold_from") or 0), int(meta.get("hold_until") or 0)
+    except (TypeError, ValueError):
+        return status
+    if status == "active" and period_start and hold_from and hold_from <= int(period_start) < hold_until:
+        return ON_HOLD
+    return status
 
 def new_subscriber_label(status: str):
     """Admin-alert text for a brand-new subscription row, or None to stay silent.

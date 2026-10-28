@@ -507,7 +507,8 @@ async def get_me(request: Request):
     # never learns their card failed. `plan` stays as computed — the entitlement
     # really is free — so the UI shows "free plan" plus the warning badge.
     attention = bal["_sub_row"]
-    if attention is not None and attention.status not in config.BILLING_ATTENTION_STATES:
+    if attention is not None and attention.status not in (*config.BILLING_ATTENTION_STATES,
+                                                          config.ON_HOLD):
         attention = None
     shown = sub or attention
     return {
@@ -518,6 +519,12 @@ async def get_me(request: Request):
         "interval": shown.interval if shown else None,
         "period_end": bal["period_end"].isoformat() if bal["period_end"] else None,
         "cancel_at_period_end": shown.cancel_at_period_end if shown else False,
+        # Month on hold (cancel flow): when the plan and its billing come back.
+        "hold_until": (shown.current_period_end.isoformat()
+                       if shown and shown.status == config.ON_HOLD else None),
+        # A hold already booked for the next period, still undoable.
+        "hold_scheduled": bool(shown and shown.status == "active" and shown.hold_from
+                               and shown.hold_from > datetime.now(timezone.utc)),
         # Drives the "Manage billing" route in the UI: any Stripe relationship,
         # live or broken, must keep the portal reachable.
         "has_billing_account": bool(sub or attention),

@@ -95,6 +95,10 @@ class Subscription(Base):
     current_period_start = Column(DateTime(timezone=True), nullable=False)
     current_period_end = Column(DateTime(timezone=True), nullable=False)
     cancel_at_period_end = Column(Boolean, nullable=False, default=False)
+    # Month on hold from the cancel flow (config.ON_HOLD), mirrored from the
+    # Stripe metadata. hold_from stays set after the hold: one per subscription.
+    hold_from = Column(DateTime(timezone=True), nullable=True)
+    hold_until = Column(DateTime(timezone=True), nullable=True)
     last_event_at = Column(DateTime(timezone=True), nullable=True)  # ordering guard for webhooks
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

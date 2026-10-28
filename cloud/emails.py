@@ -308,6 +308,48 @@ async def send_winback_email(user_id, email: str, promo_code: str = "",
     return await send_commercial_email(user_id, email, subject, html)
 
 
+async def send_paid_idle_email(user_id, email: str, minutes: int, period_end,
+                               ending: bool = False) -> bool:
+    """A paying plan with nothing processed this period, days into it."""
+    app = f"{settings.frontend_url}/#app"
+    autopilot = f"{settings.frontend_url}/#app?tab=autopilot"
+    until = f"{period_end:%B} {period_end.day}"
+    tail = (f"Your plan ends on {until}, so they are yours until then."
+            if ending else f"They reset on {until} and don't carry over.")
+    html = f"""
+      <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
+        <h2>Your {minutes} minutes are waiting</h2>
+        <p>You haven't clipped anything this month yet. {tail}</p>
+        <p>Paste a YouTube link (a podcast, a stream, a talk) and you get
+           ready-to-post vertical clips, no watermark.</p>
+        {_cta(app, "Clip a video")}
+        <p><strong>No time to do it by hand?</strong> Turn on Autopilot: pick
+           your channel once and every new video you publish is clipped for
+           you automatically.</p>
+        <p><a href="{autopilot}">Set up Autopilot</a></p>
+      </div>
+    """
+    return await send_commercial_email(user_id, email, f"Your {minutes} minutes are waiting", html)
+
+
+async def send_comeback_email(user_id, email: str, free_minutes: int) -> bool:
+    """A few days after a subscription ended: the free plan is still there."""
+    app = f"{settings.frontend_url}/#app"
+    html = f"""
+      <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto">
+        <h2>You still have {free_minutes} free minutes every month</h2>
+        <p>Your plan has ended, but your account hasn't: {free_minutes} minutes
+           of video a month stay free, on the same GPU, no card needed.</p>
+        <p>Got a new video? Paste the link and get your clips.</p>
+        {_cta(app, "Clip a video")}
+        <p style="color:#666;font-size:13px">Free clips carry a watermark and
+           last 7 days. When you need more, plans are on the same page.</p>
+      </div>
+    """
+    return await send_commercial_email(
+        user_id, email, f"Your {free_minutes} free minutes are back", html)
+
+
 async def send_checkout_recovery_email(user_id, email: str, recovery_url: str,
                                        amount_label: str = "") -> bool:
     """A Stripe Checkout expired unpaid. ``recovery_url`` reopens the same cart

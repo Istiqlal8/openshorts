@@ -448,6 +448,11 @@ async def is_free_user(session, user_id) -> bool:
     """
     if await _active_subscription(session, user_id):
         return False
+    # A month on hold spends free minutes but is still a paying customer's
+    # library: it must not expire like a free one while they are away.
+    row = await _subscription_row(session, user_id)
+    if row is not None and row.status == config.ON_HOLD:
+        return False
     user = await session.get(User, user_id)
     if user is not None and getattr(user, "free_plan_denied", None):
         return True

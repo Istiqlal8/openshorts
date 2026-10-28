@@ -130,6 +130,14 @@ class TestLoopSend:
         monkeypatch.setattr(emails, "send_welcome_email", _mk("welcome"))
         monkeypatch.setattr(emails, "send_first_clip_email", _mk("first_clip"))
         monkeypatch.setattr(emails, "send_winback_email", _mk("winback"))
+        monkeypatch.setattr(emails, "send_paid_idle_email", _mk("paid_idle"))
+        monkeypatch.setattr(emails, "send_comeback_email", _mk("comeback"))
+        state["sub"] = SimpleNamespace(status="active", minutes_per_period=100,
+                                       current_period_end="end", cancel_at_period_end=True)
+
+        async def _sub(user_id):
+            return state["sub"]
+        monkeypatch.setattr(lifecycle, "_subscription", _sub)
         monkeypatch.setattr(lifecycle.config, "FIRST_VIDEO_MAX_MINUTES", 60)
         return state
 
@@ -156,6 +164,76 @@ class TestLoopSend:
         user = SimpleNamespace(id="u", email="e", eligible=False)
         assert run(lifecycle._send("winback", user)) is True
         assert loop_state["sent"] == [("winback", ("CODE", "50% off"))]
+
+
+    def test_paid_idle_names_the_minutes_and_the_end(self, loop_state):
+        user = SimpleNamespace(id="u", email="e", eligible=True)
+        assert run(lifecycle._send("paid_idle", user)) is True
+        assert loop_state["sent"] == [("paid_idle", (100, "end", True))]
+
+    def test_paid_idle_skips_a_plan_that_is_no_longer_live(self, loop_state):
+        loop_state["sub"].status = "past_due"
+        user = SimpleNamespace(id="u", email="e", eligible=True)
+        assert run(lifecycle._send("paid_idle", user)) is False
+        assert loop_state["sent"] == []
+
+    def test_comeback_only_to_free_eligible_accounts(self, loop_state, monkeypatch):
+        monkeypatch.setattr(lifecycle.config, "FREE_PLAN_MINUTES", 20)
+        assert run(lifecycle._send("comeback", SimpleNamespace(id="u", email="e", eligible=False))) is False
+        assert run(lifecycle._send("comeback", SimpleNamespace(id="v", email="e", eligible=True))) is True
+        assert loop_state["sent"] == [("comeback", (20,))]
+
+
+class TestCandidateQueries:
+    @pytest.mark.parametrize("kind", ["welcome", "first_clip", "winback", "paid_idle", "comeback"])
+    def test_every_kind_compiles_for_postgres(self, kind, monkeypatch):
+        # A correlated EXISTS over a table the outer query also joins compiles
+        # to "no FROM clauses" only at run time; compile them all here.
+        from sqlalchemy.dialects import postgresql
+        seen = []
+
+        class _S:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+            async def execute(self, q):
+                seen.append(q)
+                return SimpleNamespace(scalars=lambda: [])
+        monkeypatch.setattr(lifecycle.database, "session", lambda: _S())
+        run(lifecycle._candidates(kind, 5))
+        sql = str(seen[0].compile(dialect=postgresql.dialect()))
+        assert "FROM users" in sql
+
+
+class TestPaidEmails:
+    def test_paid_idle_copy(self, monkeypatch):
+        from datetime import datetime
+        sent = []
+
+        async def _send(uid, to, subject, html):
+            sent.append((subject, html))
+            return True
+        monkeypatch.setattr(emails, "send_commercial_email", _send)
+        end = datetime(2026, 11, 3)
+        run(emails.send_paid_idle_email("u", "e", 100, end, ending=True))
+        run(emails.send_paid_idle_email("u", "e", 100, end, ending=False))
+        (s1, h1), (s2, h2) = sent
+        assert s1 == "Your 100 minutes are waiting"
+        assert "ends on November 3" in h1 and "reset on November 3" in h2
+        assert "tab=autopilot" in h1
+
+    def test_comeback_has_no_discount(self, monkeypatch):
+        sent = []
+
+        async def _send(uid, to, subject, html):
+            sent.append(html)
+            return True
+        monkeypatch.setattr(emails, "send_commercial_email", _send)
+        run(emails.send_comeback_email("u", "e", 20))
+        assert "20 free minutes" in sent[0] and "%" not in sent[0] and "code" not in sent[0].lower()
 
 
 class TestCommercialEmail:

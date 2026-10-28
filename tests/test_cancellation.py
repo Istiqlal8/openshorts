@@ -51,7 +51,7 @@ class _Session:
 def env(monkeypatch):
     sub = SimpleNamespace(
         id="sub-row", stripe_subscription_id="sub_123", plan="creator", interval="month",
-        status="active", cancel_at_period_end=False,
+        status="active", cancel_at_period_end=False, hold_from=None, hold_until=None,
         current_period_end=datetime.now(timezone.utc) + timedelta(days=12),
     )
     state = SimpleNamespace(sub=sub, added=[], stripe_calls=[], alerts=[], stripe_error=None)
@@ -85,6 +85,12 @@ def env(monkeypatch):
     monkeypatch.setattr(cancellation, "_stripe_apply_retention",
                         lambda sid, cid: state.applied.append((sid, cid)))
     monkeypatch.setattr(cancellation, "_stripe_resume", lambda sid: state.resumed.append(sid))
+    state.holds = []
+    state.unholds = []
+    monkeypatch.setattr(cancellation, "_stripe_hold",
+                        lambda sid, f, u: state.holds.append((sid, f, u)))
+    monkeypatch.setattr(cancellation, "_stripe_unhold",
+                        lambda sid, started, now_ts: state.unholds.append((sid, started)))
     monkeypatch.setattr(cancellation.analytics, "track", lambda *a, **k: None)
     monkeypatch.setattr(alerts, "send_admin_alert", _alert)
     return state
@@ -161,7 +167,8 @@ def _accept(**body):
 
 class TestRetentionOffer:
     def test_a_live_monthly_plan_gets_the_offer(self, env):
-        assert _offer() == {"eligible": True, "percent_off": 50, "months": 3}
+        out = _offer()
+        assert (out["eligible"], out["percent_off"], out["months"]) == (True, 50, 3)
 
     @pytest.mark.parametrize("field,value", [
         ("interval", "year"),        # would halve a whole year
@@ -174,7 +181,7 @@ class TestRetentionOffer:
 
     def test_no_second_offer_or_stacked_discount(self, env):
         env.offer_blocked = True
-        assert _offer() == {"eligible": False}
+        assert _offer()["eligible"] is False
         with pytest.raises(HTTPException) as e:
             _accept()
         assert e.value.status_code == 409
@@ -184,7 +191,7 @@ class TestRetentionOffer:
         def boom(_sid):
             raise RuntimeError("stripe down")
         monkeypatch.setattr(cancellation, "_stripe_offer_blocked", boom)
-        assert _offer() == {"eligible": False}
+        assert _offer()["eligible"] is False
 
     def test_taking_it_applies_the_coupon_and_keeps_the_feedback(self, env):
         out = _accept(reason="not_using_it", details="busy month", rating=3)
@@ -199,11 +206,108 @@ class TestRetentionOffer:
 
     def test_no_coupon_configured_no_offer(self, env, monkeypatch):
         monkeypatch.setattr(cancellation, "RETENTION_COUPON", "")
-        assert _offer() == {"eligible": False}
+        assert _offer()["eligible"] is False
 
     def test_a_cancel_row_says_so(self, env):
         _cancel()
         assert env.added[0].outcome == "canceled"
+
+
+def _pause(**body):
+    body.setdefault("reason", "not_using_it")
+    return asyncio.run(cancellation.pause_subscription(
+        cancellation.CancelRequest(**body), request=None))
+
+
+class TestPause:
+    def test_offered_on_a_live_monthly_plan_from_its_period_end(self, env):
+        out = _offer()
+        assert out["pause_eligible"] is True
+        assert out["pause_from"] == env.sub.current_period_end.isoformat()
+        assert set(out["pause_reasons"]) == set(cancellation.PAUSE_REASONS)
+
+    @pytest.mark.parametrize("field,value", [
+        ("interval", "year"), ("status", "trialing"), ("status", "past_due"),
+        ("hold_from", datetime(2026, 1, 1, tzinfo=timezone.utc)),   # one per subscription
+    ])
+    def test_not_offered_otherwise(self, env, field, value):
+        setattr(env.sub, field, value)
+        assert "pause_eligible" not in _offer()
+
+    def test_holds_the_month_after_the_paid_one(self, env):
+        out = _pause(details="exams", rating=4)
+        assert out["ok"]
+        ((sid, hold_from, hold_until),) = env.holds
+        end = env.sub.current_period_end
+        assert sid == "sub_123" and hold_from == int(end.timestamp())
+        assert hold_until - hold_from == cancellation.config.HOLD_DAYS * 86400
+        assert env.sub.hold_from == end and env.stripe_calls == []   # not cancelled
+        (row,) = env.added
+        assert row.outcome == "paused" and row.reason == "not_using_it"
+        (subject, body), = env.alerts
+        assert "exams" not in body
+
+    def test_only_for_the_pause_reasons(self, env):
+        with pytest.raises(HTTPException) as e:
+            _pause(reason="clip_quality")
+        assert e.value.status_code == 422
+        assert env.holds == []
+
+    def test_stripe_failure_records_nothing(self, env, monkeypatch):
+        def boom(*a):
+            raise RuntimeError("stripe down")
+        monkeypatch.setattr(cancellation, "_stripe_hold", boom)
+        with pytest.raises(HTTPException) as e:
+            _pause()
+        assert e.value.status_code == 502
+        assert env.added == [] and env.sub.hold_from is None
+
+    def test_unpause_during_the_hold_charges_a_new_period(self, env):
+        env.sub.status = cancellation.config.ON_HOLD
+        out = asyncio.run(cancellation.unpause_subscription(request=None))
+        assert out == {"ok": True, "charged": True}
+        assert env.unholds == [("sub_123", True)]
+
+    def test_unpause_before_it_starts_forgets_it(self, env):
+        env.sub.hold_from = env.sub.current_period_end
+        env.sub.hold_until = env.sub.current_period_end + timedelta(days=27)
+        out = asyncio.run(cancellation.unpause_subscription(request=None))
+        assert out == {"ok": True, "charged": False}
+        assert env.unholds == [("sub_123", False)]
+        assert env.sub.hold_from is None and env.sub.hold_until is None
+
+    def test_nothing_to_unpause(self, env):
+        with pytest.raises(HTTPException) as e:
+            asyncio.run(cancellation.unpause_subscription(request=None))
+        assert e.value.status_code == 409
+
+    def test_the_ui_knows_the_pause_reasons(self):
+        modal = open(os.path.join(REPO, "dashboard/src/components/CancelPlanModal.jsx")).read()
+        assert "pause_reasons" in modal and "/api/billing/pause" in modal
+
+
+class TestHoldStatus:
+    def _sub(self, start, **meta):
+        return {"status": "active", "metadata": {k: str(v) for k, v in meta.items()}}
+
+    def test_period_inside_the_window_is_on_hold(self):
+        sub = self._sub(0, hold_from=1000, hold_until=1000 + 27 * 86400)
+        assert cancellation.config.subscription_status(sub, 1000) == "on_hold"
+
+    def test_paid_period_before_and_renewal_after_are_active(self):
+        sub = self._sub(0, hold_from=1000, hold_until=1000 + 27 * 86400)
+        assert cancellation.config.subscription_status(sub, 1000 - 30 * 86400) == "active"
+        assert cancellation.config.subscription_status(sub, 1000 + 28 * 86400) == "active"
+
+    def test_stripe_states_win(self):
+        sub = {"status": "past_due", "metadata": {"hold_from": "1000", "hold_until": "9999"}}
+        assert cancellation.config.subscription_status(sub, 1000) == "past_due"
+        assert cancellation.config.subscription_status({"status": "active"}, 1000) == "active"
+        bad = {"status": "active", "metadata": {"hold_from": "x"}}
+        assert cancellation.config.subscription_status(bad, 1000) == "active"
+
+    def test_on_hold_blocks_a_second_checkout(self):
+        assert cancellation.config.ON_HOLD in cancellation.config.CHECKOUT_BLOCKING_STATES
 
 
 class TestResume:

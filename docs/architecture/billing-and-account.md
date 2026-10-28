@@ -95,6 +95,14 @@ out-of-minutes upsell goes through it too). The Stripe webhook endpoint must
 have `checkout.session.expired` enabled. Promotion codes and coupon ids live in
 the env / Stripe, never in this repo.
 
+Two more go to customers: `paid_idle` (a live paid plan 3+ days into its period
+with nothing processed in it and 5+ days left, plans set to cancel included:
+the minutes waiting plus Autopilot) and `comeback` (3+ days after the
+subscription ended, free-plan accounts only: the free monthly minutes, no
+discount). Both join the one-per-user subscription row and skip comp plans
+(`sub_comp…`); `tests/test_lifecycle_emails.py` compiles every candidate query
+for Postgres, since a correlation mistake only fails at run time.
+
 ## Cancel flow (`cloud/cancellation.py`, `CancelPlanModal.jsx`)
 
 Account → "Cancel subscription" opens three steps: reason (closed list,
@@ -118,6 +126,21 @@ Stripe customer portal, so this flow is the only way to cancel;
 `POST /api/billing/resume` undoes a scheduled cancel ("Keep my subscription" on
 the account page). The webhook alert for a portal cancel stays for cancels made
 from the Stripe Dashboard.
+
+For `PAUSE_REASONS` (not using it, one-off project) the last step first offers
+a month on hold (`POST /api/billing/pause`, monthly live plans, once per
+subscription). It sets Stripe `pause_collection` (`behavior: void`,
+`resumes_at`) and a hold window `[hold_from, hold_until)` in the subscription
+metadata, where `hold_from` is the end of the paid period and `hold_until` is
+`HOLD_DAYS` (27) later, shorter than any month. The webhook mirrors the window
+to `subscriptions.hold_from/hold_until` and `config.subscription_status` turns a
+period that starts inside it into `on_hold`: no plan minutes (free plan
+instead), checkout blocked, library durable (`metering.is_free_user` is False),
+`/api/me` reports `hold_until`. The next period starts past the window, Stripe
+charges it and the row is `active` again (and the library is unmarked, as on
+any upgrade). `POST /api/billing/unpause` drops a hold not yet started, or ends
+a running one by charging a new period now (`billing_cycle_anchor=now`,
+window closed at that instant). Feedback rows store `outcome="paused"`.
 
 ## Sign-up survey (`cloud/onboarding.py`, `OnboardingSurvey.jsx`)
 

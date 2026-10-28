@@ -24,6 +24,9 @@ _ADDITIVE_COLUMNS = (
     "ALTER TABLE cancellation_feedback ADD COLUMN IF NOT EXISTS outcome VARCHAR(16)",
     # Scope of an OAuth-issued API key (cloud/scopes.py); NULL = hand-made key.
     "ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS scope TEXT",
+    # Month on hold from the cancel flow (cloud/cancellation, config.ON_HOLD).
+    "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS hold_from TIMESTAMPTZ",
+    "ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS hold_until TIMESTAMPTZ",
 )
 
 

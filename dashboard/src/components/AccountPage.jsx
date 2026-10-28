@@ -16,7 +16,8 @@ const fmt1 = (n) => Math.round((n || 0) * 10) / 10;
 // to do something (fix a card, finish a payment) before minutes come back.
 const PAYMENT_ISSUE_STATES = ['past_due', 'unpaid', 'incomplete', 'paused'];
 // Mirrors cloud/cancellation.CANCELLABLE_STATES.
-const CANCELLABLE_STATES = ['active', 'trialing', 'past_due'];
+const CANCELLABLE_STATES = ['active', 'trialing', 'past_due', 'on_hold'];
+const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) : 'the end of the period');
 
 // Account/billing page: plan, usage meter, top-ups, manage billing, logout.
 export default function AccountPage() {
@@ -101,6 +102,18 @@ export default function AccountPage() {
     setBusy(false);
   }, [plan, refreshMe]);
 
+  const unpause = useCallback(async () => {
+    setBusy(true);
+    try {
+      const out = await apiJson('/api/billing/unpause', { method: 'POST' });
+      track('SubscriptionUnpaused', { props: { plan, charged: !!out?.charged } });
+      // A restart charges a new period; the plan comes back with the webhook.
+      if (out?.charged) await new Promise((r) => setTimeout(r, 2500));
+      await refreshMe();
+    } catch (e) { alert(e?.detail || 'Could not restart your plan.'); }
+    setBusy(false);
+  }, [plan, refreshMe]);
+
   const buyTopup = useCallback(async (price_id) => {
     setBusy(true);
     try {
@@ -144,7 +157,7 @@ export default function AccountPage() {
             <span className="text-ink font-medium capitalize">{plan ? `${plan} plan` : 'No active plan'}</span>
             {/* Payment-issue states get the explanatory banner below instead —
                 showing raw Stripe jargon ("past_due") twice explains nothing. */}
-            {me.status && me.status !== 'active'
+            {me.status && me.status !== 'active' && me.status !== 'on_hold'
               && !PAYMENT_ISSUE_STATES.includes(me.status) && (
               <span className="badge-warn">{me.status}</span>
             )}
@@ -179,6 +192,20 @@ export default function AccountPage() {
               Update your card
             </button>{' '}
             and it resumes right away.
+          </div>
+        )}
+
+        {/* Month on hold from the cancel flow (cloud/cancellation). */}
+        {(me.status === 'on_hold' || me.hold_scheduled) && (
+          <div className="mb-4 rounded-card border border-brass/40 bg-brass/5 p-3 text-sm text-ink2 flex items-center justify-between gap-3">
+            <span>
+              {me.status === 'on_hold'
+                ? <>Your plan is paused until <b className="text-ink">{fmtDay(me.hold_until)}</b>. You're on free minutes and your clips are kept.</>
+                : <>Your plan skips next month from <b className="text-ink">{fmtDay(me.period_end)}</b>, with no charge.</>}
+            </span>
+            <button onClick={unpause} disabled={busy} className="btn-ghost px-4 py-2 text-xs shrink-0">
+              {me.status === 'on_hold' ? 'Restart now' : 'Undo pause'}
+            </button>
           </div>
         )}
 
