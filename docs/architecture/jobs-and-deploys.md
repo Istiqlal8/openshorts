@@ -81,8 +81,10 @@ Speed at equal quality:
   Exempt: the nvenc probe (`NVENC_SLOTS=0` in its env), pipe-fed encoders,
   and the API process (editor renders). A queued encode runs anyway after
   `NVENC_SLOT_WAIT` (600 s). 0 turns it off.
-- **QUALITY on p4** (was p5, oct-2026): same hq tune and AQs, same file size
-  and SSIM within 0.001 on a real clip, cheaper per frame on the engine.
+- **NVENC on p3** (QUALITY, QUALITY_FAST, DELIVERY; was p5, then p4, oct-2026):
+  same hq tune and AQs. p3 against p4 on real clips: ~25% less engine time,
+  files ~13% larger, SSIM to the source within 0.001; p2 bought little more
+  speed for ~21% larger files and p1 is no faster than p2.
 - **`CLIP_WORKERS=6`** by default.
 - **Decode on the card, keep the CPU's pixels** (`gpu_decode`): the scene
   pass, the sampled frames of the classifiers (`frame_sampler.read_at_path`),

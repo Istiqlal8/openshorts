@@ -33,19 +33,20 @@ _X264_ARGS = {
 # NVENC -cq is not 1:1 with x264 CRF: benchmarked on the prod GPU (RTX 4000
 # Ada), cq ≈ crf + 7 lands in the same file-size ballpark, with vbr + AQ for
 # quality. Presets p1-p7: p5 ≈ "medium", p4 ≈ "fast". QUALITY ran p5 until
-# oct-2026; p4 keeps its hq tune and both AQs and costs the engine less per
-# frame, which on a shared card matters more than p5's small gain.
+# oct-2026, then p4, then p3: same hq tune and AQs, ~25% less engine time per
+# frame for files ~13% larger at an SSIM to the source within 0.001 of p4. On
+# a shared card the engine time matters more than the small gain.
 # -pix_fmt yuv420p is REQUIRED: with RGB input (the bgr24 rawvideo pipe from
 # OpenCV) nvenc otherwise emits H.264 in gbrp/GBR colorspace, which ffmpeg
 # reads fine but web players render as a magenta/green mess.
 _NVENC_ARGS = {
-    QUALITY: ["-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq",
+    QUALITY: ["-c:v", "h264_nvenc", "-preset", "p3", "-tune", "hq",
               "-rc", "vbr", "-cq", "25", "-b:v", "0",
               "-spatial-aq", "1", "-temporal-aq", "1", "-pix_fmt", "yuv420p"],
-    QUALITY_FAST: ["-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq",
+    QUALITY_FAST: ["-c:v", "h264_nvenc", "-preset", "p3", "-tune", "hq",
                    "-rc", "vbr", "-cq", "25", "-b:v", "0", "-spatial-aq", "1",
                    "-pix_fmt", "yuv420p"],
-    DELIVERY: ["-c:v", "h264_nvenc", "-preset", "p4",
+    DELIVERY: ["-c:v", "h264_nvenc", "-preset", "p3",
                "-rc", "vbr", "-cq", "29", "-b:v", "0", "-spatial-aq", "1",
                "-pix_fmt", "yuv420p"],
 }

@@ -83,7 +83,7 @@ class TestTrack:
 
 def test_encoder_options_mirror_the_ffmpeg_tier():
     opts = dict(gpu_render.encoder_options())
-    assert opts["preset"] == "p4" and opts["cq"] == "25" and opts["b"] == "0"
+    assert opts["preset"] == "p3" and opts["cq"] == "25" and opts["b"] == "0"
     assert "c:v" not in opts and "pix_fmt" not in opts
 
 
