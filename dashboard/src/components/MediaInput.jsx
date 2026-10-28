@@ -5,7 +5,7 @@ import { getApiUrl } from '../config';
 import SourceCost from './SourceCost';
 
 const SUPPORTED_PLATFORMS = [
-    'YouTube', 'Vimeo', 'TikTok', 'X / Twitter', 'Twitch',
+    'YouTube', 'Vimeo', 'TikTok', 'X / Twitter', 'Twitch', 'Kick',
     'Facebook', 'Instagram', 'Dailymotion', 'Reddit', 'Streamable',
 ];
 

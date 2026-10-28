@@ -19,6 +19,7 @@ import { esc } from './render.js'
 import { toolPages } from './tools.js'
 import { autopilotPages } from './autopilot-pages.js'
 import { guidePages } from './guide-pages.js'
+import { clipToolPages } from './clip-tools.js'
 
 const li = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`
 const ol = (items) => `<ol>${items.map((i) => `<li>${i}</li>`).join('')}</ol>`
@@ -2733,7 +2734,7 @@ export function buildPages() {
     relatedTitle: p.relatedTitle || relatedTitleFor(p.path),
   }))
   // The tool and autopilot modules name their own neighbours.
-  return [...pages, ...guidePages(), ...autopilotPages(), ...toolPages()]
+  return [...pages, ...guidePages(), ...autopilotPages(), ...toolPages(), ...clipToolPages()]
 }
 
 /* Each page links to three siblings. Small, described clusters beat a single
@@ -2772,18 +2773,18 @@ export function relatedFor(page, all) {
     '/video-aspect-ratio-converter': '16:9 to 9:16 in your browser: blur, crop or bars.',
     // Pages added by other modules; a blurb for a page that is not built is
     // simply never used.
-    '/youtube-clip-maker': 'Clip a YouTube video into vertical shorts from its link.',
-    '/youtube-shorts-maker': 'Make YouTube Shorts from a long video, captions included.',
-    '/tiktok-clip-maker': 'Long video in, TikTok-ready vertical clips out.',
-    '/ai-reel-generator': 'Instagram Reels cut by AI from footage you already have.',
-    '/twitch-clip-maker': 'Twitch VODs into vertical clips.',
-    '/kick-clip-maker': 'Kick streams into vertical clips.',
-    '/auto-reframe': '16:9 to 9:16 with face tracking that holds still.',
-    '/sermon-clip-maker': 'A sermon into short clips for the week.',
-    '/how-to-clip-a-youtube-video': 'Step by step, from a YouTube link to posted clips.',
-    '/self-hosted-ai-clip-maker': 'The whole clip pipeline on your own machine.',
-    '/pricing': 'Self-hosted free, Cloud plans from $12/month, side by side.',
-    '/free-ai-clipping-tools-compared': 'Every free plan in the category: limits and watermarks.',
+    '/youtube-clip-maker': 'Paste a YouTube link, get vertical clips with captions and hooks.',
+    '/youtube-shorts-maker': 'Shorts from long videos: length, hooks, captions, posting, Autopilot.',
+    '/tiktok-clip-maker': 'Long video to TikToks, and why they land in TikTok as drafts.',
+    '/ai-reel-generator': 'Reels posted straight to Instagram, Facebook Reels as files.',
+    '/twitch-clip-maker': 'VODs clipped in parts, facecam kept, silent gameplay handled.',
+    '/kick-clip-maker': 'Kick VOD and clip links, IRL and facecam layouts, permission.',
+    '/auto-reframe': 'AI tracking, stacked speakers and screens, versus a static crop.',
+    '/sermon-clip-maker': 'Clip only the sermon, follow the preacher, a clip a day.',
+    '/how-to-clip-a-youtube-video': 'Share a moment, Studio, ffmpeg, or AI-cut Shorts: four free ways.',
+    '/self-hosted-ai-clip-maker': 'Docker setup, hardware, your own keys, and the real cost vs credits.',
+    '/pricing': 'Free plan, $12 to $59 a month, $0 self-hosted: what a minute buys.',
+    '/free-ai-clipping-tools-compared': 'Every free tier side by side: minutes, resolution, who watermarks.',
   }
   const card = (p) => ({ path: p.path, title: p.h1, blurb: blurb[p.path] || p.description })
   // A page can name its own neighbours: the first three of its list that are
