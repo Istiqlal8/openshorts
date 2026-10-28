@@ -105,6 +105,16 @@ Speed at equal quality:
   binary or any failure: the scene-by-scene ffmpeg render, unchanged.
   `GPU_RENDER=0` turns it off. Punch-in only renders whole here: ffmpeg's crop
   ends the stream at the first size change a sendcmd makes.
+- **Hooked-only picture on demand** (`hooks.materialize`, `HOOK_LAZY`): the
+  job's hook + captions pass encodes only what is served (captioned, plus the
+  free plan's `wm_` copy). The hooked-only `hooked_<ts>_<clean>` is needed
+  only when the editor re-captions or removes the captions, so the pass keeps
+  a recipe (`.hookrecipe_<name>.json` + `.png`: overlay image, position,
+  window) and `app._strip_burned_captions` encodes it the first time it is
+  asked for, off the event loop; `/api/hook` strips past it without encoding.
+  Same filter and encoder as before, so the file is the same. No recipe or a
+  failed encode: the walk-back stops as it always did. `HOOK_LAZY=0` encodes
+  it in the pass again.
 - **Sparse trajectory** (`reframe_v2._sparse_trajectory`, `SPARSE_TRAJECTORY`):
   the detectors look at one frame in `DETECT_STRIDE` plus scene starts, and only
   in TRACK scenes, so only those are scaled and piped (ffmpeg `select`). It
