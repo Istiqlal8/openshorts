@@ -25,6 +25,7 @@ export default defineConfig({
         'tool-transcript': 'tools/transcript.js',
         'tool-metadata': 'tools/metadata.js',
         'tool-vertical': 'tools/vertical.js',
+        'tool-paste-link': 'tools/paste-link.js',
       },
     },
   },
