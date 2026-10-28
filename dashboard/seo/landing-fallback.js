@@ -60,16 +60,35 @@ const STEPS = [
   ['Download or post directly', 'Export the clips or publish straight to TikTok, Instagram Reels and YouTube Shorts.'],
 ]
 
+// The first seven follow the order of the faqs array in Landing.jsx; the new
+// buyer questions (watermark, card, clip count, rights) are also in the
+// FAQPage JSON-LD in index.html, with the same answers.
 const FAQ = [
   [
-    'Is OpenShorts free? What is the catch?',
-    CANONICAL_ANSWERS.isItFree +
+    'Is OpenShorts really free?',
+    'Self-hosting is free under the MIT licence, with no watermark and no cap; OpenShorts Cloud has a free plan (your first video up to 60 minutes, then 20 minutes a month, watermarked) and paid plans from $12/month.' +
       ' Self-hosted costs you hardware and time: on a typical CPU an 8-minute video takes 5 to 8 minutes to process, and you supply your own Google Gemini key, whose free tier covers 1,500 requests a day. On OpenShorts Cloud an NVIDIA GPU clips that same video in about 50 seconds, the Gemini key is included, auto-posting to TikTok, Instagram and YouTube is already wired up, and your clips stay retrievable from any browser.',
+  ],
+  [
+    'Do the clips have a watermark?',
+    'Only on the free Cloud plan. Clips made on the free plan of OpenShorts Cloud carry a small watermark; every paid plan, from $12/month, has none, and upgrading removes the mark from the clips you already made. The self-hosted edition, free under MIT, never adds one.',
+  ],
+  [
+    'Do I need a credit card to start?',
+    'No. The free plan of OpenShorts Cloud needs no credit card: your first video is clipped free up to 60 minutes, then you get 20 free minutes every month, with a watermark. You only add a card if you choose a paid plan, from $12/month.',
+  ],
+  [
+    'How many clips do I get from one video?',
+    'Between 3 and 15, each 15 to 60 seconds long. The AI scores every moment of the video and keeps the ones that hold up as standalone clips, so the number depends on the source, not on a fixed quota.',
+  ],
+  [
+    'Can I clip someone else\'s YouTube video?',
+    'Only if you own it or have the rights or permission to use it. Before a video is processed, OpenShorts asks you to confirm you own the content or have the rights to it, and you are responsible for what you submit. Fair use depends on the country and on how the clip is used, so it is never guaranteed; reuploading someone else\'s video without permission is copyright infringement, and platforms remove it and strike the account. Clip your own videos, channels you manage, or footage you have licensed.',
   ],
   ['What is OpenShorts and how does it work?', CANONICAL_ANSWERS.whatIsIt + ' ' + CANONICAL_ANSWERS.howItWorks],
   [
     'How does OpenShorts compare to Opus Clip?',
-    'Both do AI viral moment detection and smart vertical cropping. OpenShorts is MIT-licensed and can be self-hosted, so the source video never leaves your machine, and it adds voice dubbing into 30+ languages (with your own ElevenLabs key) plus an AI UGC generator with lip-synced actors. Opus Clip is closed source and cloud only, starting at $15/month as of October 2026, and it ships a larger caption-style library. Full comparison at /alternatives/opus-clip.',
+    'Both do AI viral moment detection and smart vertical cropping. OpenShorts is MIT-licensed and can be self-hosted, so the source video never leaves your machine, and it adds voice dubbing into 30+ languages (with your own ElevenLabs key) plus an AI UGC generator with lip-synced actors. Opus Clip is closed source and cloud only, starting at $15/month as of October 2026, and it ships a larger caption-style library. OpenShorts Cloud starts at $12/month, and self-hosting is free. Full comparison at /alternatives/opus-clip.',
   ],
   [
     'How does the smart vertical cropping work?',
@@ -93,6 +112,21 @@ const FAQ = [
   ],
 ]
 
+/* The hero's paste box, usable before React has mounted (slow devices) and
+ * visible to crawlers that never run the bundle. On submit it does exactly what
+ * Landing.jsx's handleHeroSubmit + main.jsx's handleLaunchApp do: park the link
+ * in os_pending_url (MediaInput preloads it), skip the landing next time and
+ * open #app. main.jsx resolves its first view from the hash, so a submit made
+ * before hydration lands in the app; after hydration this markup is gone and
+ * Landing.jsx's own form takes over (it starts from whatever was typed here).
+ * The site sends no CSP header and index.html already runs inline scripts. */
+const HERO_FORM = `<form id="seo-hero-form" action="/#app" method="get" style="display:flex;flex-wrap:wrap;gap:.6rem;max-width:44rem;margin:0 0 1rem">
+    <label for="seo-hero-url" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Video link</label>
+    <input id="seo-hero-url" type="url" name="url" placeholder="Paste a YouTube link" autocomplete="off" style="flex:1 1 18rem;min-width:0;padding:.8rem 1rem;border-radius:10px;border:1px solid oklch(96% 0.006 262 / .16);background:oklch(16.5% 0.015 265);color:oklch(96% 0.006 262);font:inherit;font-size:1rem">
+    <button type="submit" style="padding:.8rem 1.3rem;border-radius:10px;border:0;background:oklch(76% 0.17 50);color:oklch(13% 0.014 265);font:inherit;font-weight:600;cursor:pointer">Get free clips &rarr;</button>
+  </form>
+  <script>(function(){var f=document.getElementById('seo-hero-form');if(!f)return;f.addEventListener('submit',function(e){e.preventDefault();var u=(f.elements.url.value||'').trim();try{if(u)localStorage.setItem('os_pending_url',u);localStorage.setItem('openshorts_skip_landing','1')}catch(_){}location.hash='#app'})})()</script>`
+
 const card = (title, body) =>
   `<div style="${S.card}"><h3 style="${S.h3}">${title}</h3><p style="margin:0;color:oklch(64% 0.012 262);font-size:.9rem;line-height:1.6">${body}</p></div>`
 
@@ -100,8 +134,9 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
 
 <section style="${S.section};padding-top:4rem"><div style="${S.wrap}">
   <p style="${S.eyebrow}">Free AI clip generator &middot; open source</p>
-  <h1 style="${S.h1}">long video in. viral shorts out.</h1>
+  <h1 style="${S.h1}">Free AI clip maker: long video in, viral shorts out</h1>
   <p style="${S.p};max-width:44rem;font-size:1.05rem">Paste a YouTube link or upload a podcast, stream or interview. The AI picks the 3 to 15 moments worth posting, reframes them to 9:16 around the people talking, and burns in the captions, ready for TikTok, Reels and Shorts in minutes. Prefer to run it yourself? It is <a href="/free-ai-clip-generator" style="${S.a}">free and open source</a>. Claude, ChatGPT and n8n can drive it too, over <a href="/mcp" style="${S.a}">MCP</a>.</p>
+  ${HERO_FORM}
   <p style="${S.muted};max-width:44rem">20,000+ accounts created &middot; 13,800+ videos clipped &middot; 3,100+ hours of video processed &middot; 6.1k GitHub stars.</p>
   <p style="${S.muted};max-width:44rem"><strong style="color:oklch(75% 0.11 150)">No credit card required.</strong> Your first video is free up to 60 minutes, then 20 free minutes every month. Paid plans from $12/month without a watermark. Prefer to run it yourself? <a style="${S.a}" href="https://github.com/mutonby/openshorts" rel="noopener">Self-host free on GitHub</a>.</p>
 </div></section>
@@ -112,28 +147,28 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
   <p style="${S.p};max-width:48rem">${CANONICAL_ANSWERS.howItWorks}</p>
 </div></section>
 
-<section style="${S.section}"><div style="${S.wrap}">
-  <h2 style="${S.h2}">what it costs</h2>
+<section id="pricing" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">Free plan vs paid: what you actually get</h2>
   <div style="${S.grid};max-width:56rem">
     ${card('OpenShorts self-hosted &middot; $0', EDITIONS.selfHosted.summary)}
     ${card('OpenShorts Cloud &middot; free tier, then from $12/month', EDITIONS.cloud.summary)}
   </div>
 </div></section>
 
-<section style="${S.section}"><div style="${S.wrap}">
-  <h2 style="${S.h2}">features</h2>
+<section id="features" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">AI clipping that finds the moments worth posting</h2>
   <div style="${S.grid}">${FEATURES.map(([t, b]) => card(t, b)).join('')}</div>
 </div></section>
 
-<section style="${S.section}"><div style="${S.wrap}">
-  <h2 style="${S.h2}">how it works</h2>
+<section id="how-it-works" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">How to turn a long video into Shorts with AI (5 steps)</h2>
   <ol style="max-width:48rem;padding-left:1.25rem;margin:0">
     ${STEPS.map(([t, b]) => `<li style="margin-bottom:.75rem"><strong style="color:oklch(96% 0.006 262)">${t}.</strong> <span style="color:oklch(64% 0.012 262)">${b}</span></li>`).join('')}
   </ol>
 </div></section>
 
-<section style="${S.section}"><div style="${S.wrap}">
-  <h2 style="${S.h2}">how it compares</h2>
+<section id="comparison" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">OpenShorts vs Opus Clip, Klap and Vizard</h2>
   <p style="${S.muted};max-width:48rem">Entry pricing checked 5 October 2026. OpenShorts is $0 self-hosted or $12/month hosted without a watermark, billed monthly. 2short.ai starts at $9.90/month, Submagic at $12, Klap at $14 and Vizard at $14.50 a month on yearly billing, Opus Clip at $15/month and Quso (formerly Vidyo.ai) at $19/month yearly. OpenShorts is the only open source and self-hostable option.</p>
   <p style="${S.muted}">
     <a style="${S.a}" href="/alternatives/opus-clip">Opus Clip alternative</a> &middot;
@@ -171,11 +206,16 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
   </p>
 </div></section>
 
-<section style="${S.section};border-bottom:none"><div style="${S.wrap}">
-  <h2 style="${S.h2}">frequently asked questions</h2>
+<section id="faq" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">FAQ: free AI clipping, watermarks and limits</h2>
   <dl style="max-width:48rem;margin:0">
     ${FAQ.map(([q, a]) => `<dt style="${S.h3};margin-top:1.5rem">${q}</dt><dd style="margin:.4rem 0 0;color:oklch(64% 0.012 262)">${a}</dd>`).join('')}
   </dl>
+</div></section>
+
+<section style="${S.section};border-bottom:none"><div style="${S.wrap}">
+  <h2 style="${S.h2}">Open source: run the same pipeline on your own hardware</h2>
+  <p style="${S.p};max-width:48rem">${EDITIONS.selfHosted.summary} It needs Docker and realistically 8GB of RAM; an NVIDIA GPU is optional and cuts processing time by roughly an order of magnitude. <a style="${S.a}" href="https://github.com/mutonby/openshorts" rel="noopener">Source and setup on GitHub</a>.</p>
 </div></section>
 
 </div>`
