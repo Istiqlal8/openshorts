@@ -132,6 +132,38 @@ export const COMPETITORS = {
       'OpenShorts Cloud is a flat minute balance from $12/month; Opus Clip meters credits per source minute, from $15/month.',
       'Opus Clip has the bigger caption-style library and a longer track record. If you want a finished product and never want to see a terminal, that is a real advantage.',
     ],
+    // /alternatives/opus-clip also answers "free opus clip alternative": the
+    // free-route copy lives in pages.js, the numbers stay here.
+    seo: {
+      title: 'Free Opus Clip Alternative, Open Source (MIT)',
+      description:
+        "Opus Clip's free plan and its 7-day trial both watermark. OpenShorts is MIT: free self-hosted with no watermark or cap, or hosted from $12/month, not $15.",
+      h1: 'A free, open source Opus Clip alternative, without the watermark trap',
+    },
+    tldr: [
+      'The free Opus Clip alternative with no watermark is OpenShorts self-hosted: MIT-licensed, run with Docker, no watermark and no cap. Opus Clip\'s own free plan (60 credits a month) and its 7-day Pro trial both watermark every export.',
+      'Hosted, OpenShorts Cloud clips your first video free up to 60 minutes, then 20 minutes a month, and paid plans start at $12/month against Opus Clip\'s $15. Both bill by the minute of source video.',
+      'Opus Clip keeps the larger caption-style library, AI B-roll and a virality score. OpenShorts adds two-speaker, screencast and webcam-inset layouts, and code you can read and run yourself.',
+    ],
+    fit:
+      'Opus Clip and OpenShorts do the same core job, and they bill it the same way: by the minute of source video. The differences are the ones the meter hides: whether the minutes run on your machine or theirs, and what the free tier puts on the clip.',
+    watermark:
+      'Opus Clip watermarks the free plan and the 7-day Pro trial alike; Starter at $15/month is the first plan without it.',
+    // Pro-plan detail that /opus-clip-pricing#pro states (the old /opus-pro page).
+    proNote:
+      'From Starter to Pro: twice the credits, 2 seats (up to 4 with extra packs), 100 GB of storage, AI B-roll, export to Premiere and DaVinci, more aspect ratios and limited API access.',
+    stay: [
+      'Your sources are short, so 150 credits a month on Starter ($15) covers everything you import.',
+      'Animated caption design is what you sell, and its caption-style library is larger than ours.',
+      'You want AI B-roll, a virality score and a scheduler in one cloud product and never want to see a terminal.',
+    ],
+    migrate: [
+      'Export the clips you still want: on the free plan they have to be exported within 3 days.',
+      'Spend the credits you have. Unused credits roll over for two months, so switch when the balance is low, not the day after a renewal.',
+      'Run one recent source through OpenShorts (the first video is clipped free up to 60 minutes) and set it next to your last Opus Clip export.',
+      'Size the plan in source minutes, the same unit Opus Clip bills in: 100 minutes for $12/month hosted, or no meter at all self-hosted.',
+      'Starter is billed monthly only, so there is no yearly term to wait out; on yearly Pro, time the switch for the renewal.',
+    ],
     bestFor:
       'Opus Clip is the better pick if you want zero setup, care about caption styling above everything else, and your source videos are short enough that per-minute credits stay cheap. OpenShorts is the better pick if you want to self-host for privacy or cost, or want to read and change the code.',
     rows: {
@@ -175,6 +207,38 @@ export const COMPETITORS = {
       'OpenShorts has a free plan you can keep using (the first video up to 60 minutes, then 20 minutes a month); Klap gives one free video.',
       'Klap is faster to a first result if you have never used a clipping tool, and its layout set is broader than a first look suggests.',
     ],
+    // "klap ai" and "klap review" are the searches: the page is a review of
+    // Klap first and a comparison second.
+    seo: {
+      title: 'Klap AI Review 2026: Pricing, Free Plan & Free Alternative',
+      description:
+        'Klap AI review, October 2026: one free video, no free plan, from $14/month billed yearly for 100 clips, per-clip billing, and an open source alternative.',
+      h1: 'Klap AI review: what it does, what it costs, and the open source alternative',
+      breadcrumb: 'Klap',
+    },
+    review: true,
+    brandAlias: 'also searched as Klap AI',
+    brandBlurb:
+      'Klap is a cloud AI clipper built around one promise: paste a YouTube link and get vertical clips back in minutes. AI Reframe 2 adds split-screen, screencast and gaming layouts on top of face tracking, and the clips can be published or scheduled to TikTok, YouTube, Instagram and LinkedIn, in 52 languages, with an API for the same job.',
+    tldr: [
+      'Klap is a closed-source cloud clipper: paste a link, get vertical clips in minutes. Paid plans start at $14/month billed yearly for 100 clips a month, and monthly billing costs roughly twice that.',
+      'There is no ongoing free plan, only one free video with no credit card. Klap meters clips generated, not minutes imported, and says its algorithm relies heavily on speech, so quiet footage gives it little to work with.',
+      'OpenShorts is the open source alternative: free under MIT when you run it yourself, or hosted from $12/month billed monthly, with a free plan you can keep using.',
+    ],
+    fit:
+      'Klap sells speed, and it is fast. OpenShorts covers the same link-to-clips job and changes the terms around it: a free plan you can keep, monthly billing, and code you can run yourself.',
+    stay: [
+      'You already paid for a year: its published prices are yearly, so the plan you hold is already the cheap way to use it.',
+      'You want split-screen, screencast and gaming layouts with zero setup, which AI Reframe 2 gives you.',
+      'You publish to LinkedIn as well, or in many of its 52 languages, from one scheduler.',
+    ],
+    migrate: [
+      'Count minutes, not clips. Klap meters clips generated; OpenShorts Cloud meters minutes of source, so add up the length of what you clip in a month.',
+      'Time it for the end of your yearly term, since Klap publishes yearly prices and monthly billing costs about twice as much.',
+      'Try the same video on both: Klap gives one free video, OpenShorts clips your first video free up to 60 minutes and then 20 minutes a month.',
+      'For gameplay or music with little speech, OpenShorts switches to a vision pass when there is no usable speech, instead of failing on an empty transcript.',
+      'Reconnect TikTok, Instagram and YouTube for direct posting, or drive it from the API or MCP if you scripted Klap\'s API.',
+    ],
     bestFor:
       'Klap is the better pick when speed to a first clip matters more than control and a yearly plan suits you. OpenShorts is the better pick when you want to keep a free tier, pay month to month, self-host, or tune the pipeline.',
     rows: { 'Usage cap': 'Metered in clips per month' },
@@ -197,15 +261,35 @@ export const COMPETITORS = {
     // "vizard ai" is the spelling most of its search volume uses, so the page
     // answers the brand question explicitly instead of hoping the comparison
     // table catches the query on its own.
+    // The brand questions ("what is it", "is it free") are answered by the
+    // /vizard-ai review; this page is the switch decision.
     seo: {
-      title: 'Vizard AI Alternative: Free & Open Source',
+      title: 'Vizard AI Alternative: Open Source, Free to Self-Host',
       description:
-        'OpenShorts vs Vizard AI: plans and free tier checked October 2026 (60 credits, 720p, watermark), features side by side, and where each one wins.',
+        'Leaving Vizard AI? OpenShorts is MIT and free to self-host, or $12/month hosted. Vizard starts at $14.50/month yearly. When to switch, when to stay, how.',
+      h1: 'The open source Vizard AI alternative: when to switch, and how',
     },
+    tldr: [
+      'OpenShorts is the open source alternative to Vizard AI: free under MIT when you self-host it, or hosted from $12/month billed monthly. Vizard starts at $14.50/month billed yearly, $29 month to month.',
+      'The switch is about workflow more than features. Vizard proposes clips and expects you in its timeline; OpenShorts runs to finished clips on its own, with two-speaker, screencast and webcam-inset layouts.',
+      'Stay on Vizard if you edit every clip by hand or clip a few hundred minutes a month on a yearly plan. Switch if you want clips without the editor, automation, or self-hosting.',
+    ],
     brandAlias: 'also written Vizard AI',
     brandBlurb:
       'Vizard (written Vizard AI in most searches, and served from vizard.ai) is a browser-based clipper: it transcribes the video, finds candidate moments and hands you a timeline to fix them in. That transcription pass is also its video-to-text feature, so a transcript comes out of the same job as the clips. Lately it has added an AI agent and an AI Studio for generated video around the clipper.',
+    // Asked on the comparison page: the switch questions.
     extraFaq: [
+      {
+        q: 'Is Vizard AI cheaper than OpenShorts?',
+        a: 'At volume on yearly billing, yes: Vizard Creator is $14.50/month for 600 minutes, against $29/month for 300 minutes or $59/month for 750 on OpenShorts Cloud. OpenShorts is cheaper month to month at low volume ($12 for 100 minutes against Vizard\'s $29) and costs nothing self-hosted, with no watermark and no cap.',
+      },
+      {
+        q: 'Can I move my Vizard projects to OpenShorts?',
+        a: 'Not as projects. Re-run the original YouTube link or file in OpenShorts and the clips are regenerated from the source. Download anything you want to keep from Vizard first: free-plan files are stored for 3 days, and SRT transcripts need a paid plan.',
+      },
+    ],
+    // Asked on the /vizard-ai review: the brand questions.
+    brandFaq: [
       {
         q: 'Is Vizard AI free?',
         a: 'Partly. The free plan gives 60 credits a month (one credit is one minute of uploaded video), uploads up to 60 minutes, and 720p exports of up to 10 minutes with a watermark, kept for 3 days. Paid plans start at $29/month, or $14.50/month billed yearly. OpenShorts self-hosted is free with no watermark and no cap; OpenShorts Cloud clips your first video free up to 60 minutes, then 20 minutes a month.',
@@ -231,6 +315,62 @@ export const COMPETITORS = {
       'OpenShorts runs the whole pipeline unattended and is designed to be scripted or scheduled; Vizard expects a human in the timeline.',
       'OpenShorts is open source and self-hostable; Vizard is a closed cloud product.',
       'Vizard\'s editor is better than ours if you want to hand-correct each clip before posting.',
+    ],
+    fit:
+      'Vizard is an AI pass followed by an editor; OpenShorts is an AI pass that finishes on its own. If you were going to accept most of Vizard\'s suggestions anyway, the timeline is time you no longer need to spend.',
+    watermark:
+      'Vizard watermarks free-plan exports, which also stop at 720p and 10 minutes; Creator from $14.50/month yearly ($29 monthly) removes it.',
+    stay: [
+      'You hand-correct every clip in a timeline and that is the part of the job you enjoy.',
+      'You need subtitle translation and transcripts in many languages; Vizard says it covers 180+.',
+      'You clip up to 600 minutes a month and can pay yearly: $14.50/month for that allowance is cheaper per minute than OpenShorts Cloud.',
+    ],
+    migrate: [
+      'Download what you want to keep first: free-plan files are stored for 3 days.',
+      'Pull transcripts as SRT while you are still on a paid plan; the free plan exports TXT only.',
+      'Re-run the source in OpenShorts from the same YouTube link or file. There is no project import, and none is needed: the clips are regenerated from the source.',
+      'Touch only the clips that need it. OpenShorts has an editor, but the pipeline is built to finish without one.',
+      'Move the recurring part to the API, n8n or the MCP server if you were calling Vizard\'s API from a script.',
+    ],
+    // Review-only content for /vizard-ai, kept out of the comparison page so the
+    // two answer different questions.
+    reviewPage: {
+      lede: 'vizard.ai',
+      steps: [
+        'Upload a file or paste a link; paid plans take sources of up to 600 minutes and 30 GB.',
+        'Vizard transcribes the video, which is also its video-to-text output.',
+        'The AI proposes candidate clips and reframes them to vertical.',
+        'You review them in a browser timeline: captions, emoji and keyword highlights, cut points.',
+        'Export, or publish and schedule to connected social accounts.',
+      ],
+      cons: [
+        'A tight free plan: 60 minutes of source a month, 720p, exports capped at 10 minutes, a watermark on every export and 3-day storage.',
+        'Billed per uploaded minute: a 60-minute recording costs 60 credits whatever it yields.',
+        'The timeline is the workflow. If you do not want to hand-edit, it is overhead.',
+        'Closed source and cloud only: the video has to be uploaded to Vizard.',
+      ],
+      for: [
+        'Editors who want an AI first pass and then full control of every clip',
+        'Teams that need subtitles and transcripts translated into many languages',
+        'Anyone clipping a few hundred minutes a month who can commit to yearly billing',
+      ],
+      notFor: [
+        'People who want clips without opening an editor',
+        'Pipelines that must run unattended on a schedule',
+        'Anyone whose footage cannot leave their own machine',
+      ],
+      verdict:
+        'Vizard AI is a solid clipper with a genuinely good editor, priced well on yearly billing. Its free plan is for trying it, not for publishing, and its value depends on you wanting to edit. If you would rather the clips come out finished, or need to self-host, an unattended clipper fits better.',
+    },
+    reviewFaq: [
+      {
+        q: 'What are Vizard AI\'s main limitations?',
+        a: 'On the free plan: 60 credits a month, 720p exports capped at 10 minutes, a watermark and 3-day storage, with transcripts as TXT only. On every plan: billing per uploaded minute, a workflow built around editing each clip in a timeline, and no self-hosting. Checked October 2026.',
+      },
+      {
+        q: 'What are the best Vizard AI alternatives?',
+        a: 'It depends on why you are leaving. For an open source tool you can self-host, OpenShorts (MIT, free with no watermark or cap when self-hosted, hosted from $12/month). For caption design, Submagic. For the fastest link-to-clips path, Klap. For per-minute credits with a bigger caption library, Opus Clip.',
+      },
     ],
     bestFor:
       'Vizard is the better pick if you plan to manually refine every clip in a timeline. OpenShorts is the better pick for volume, automation, or self-hosting.',
@@ -271,6 +411,26 @@ export const COMPETITORS = {
       'Submagic\'s caption designs are more refined than ours. If captions are the entire reason you are shopping, it is the stronger tool.',
       'OpenShorts self-hosted has no per-video cap and no length limit; every Submagic tier is metered in videos and caps each one\'s length.',
       'OpenShorts has a free plan you can keep; Submagic offers a trial and no free plan.',
+    ],
+    tldr: [
+      'Submagic is a caption editor that added clipping (Magic Clips); OpenShorts is a clipper built for long recordings. Submagic has no free plan and starts at $12/month billed yearly, $19 month to month.',
+      'Every Submagic plan counts videos and caps each one at 2, 5 or 30 minutes. OpenShorts is free and uncapped when self-hosted under MIT, or hosted from $12/month by the source minute.',
+      'Stay on Submagic if captions are the product and your videos are short. Move the long-form clipping to OpenShorts if your sources are podcasts, streams or webinars.',
+    ],
+    fit:
+      'Submagic and OpenShorts overlap where Magic Clips begins: turning a long video into clips. Submagic arrived there from captions, OpenShorts was built for it, and the meters show it: videos with a length cap on one side, source minutes or nothing at all on the other.',
+    watermark:
+      'Submagic has no free plan to watermark: there is a trial, and Starter ($12/month yearly, $19 monthly) exports without a watermark.',
+    stay: [
+      'Captions are the product, and its caption designs are the most refined in this category.',
+      'Your videos fit its per-video caps: 2 minutes on Starter, 5 on Pro, 30 on Business.',
+      'You want B-roll, auto zooms, hook titles and silence removal in the same editor as the captions.',
+    ],
+    migrate: [
+      'Check your source lengths first: any recording over 30 minutes does not fit a single Submagic video on any self-serve plan, and it is a normal input for OpenShorts.',
+      'Move the long-form clipping to OpenShorts and judge the caption style on one episode: the first video is clipped free up to 60 minutes.',
+      'Compare the meter: Submagic counts videos a month (15, 40 or 100); OpenShorts Cloud counts source minutes, and the self-hosted edition counts nothing.',
+      'If caption design is non-negotiable for a short, Submagic\'s Starter plan covers 15 videos of up to 2 minutes for $12/month billed yearly.',
     ],
     bestFor:
       'Submagic is the better pick if captions are the product and your videos are short. OpenShorts is the better pick if you are starting from long-form video and want the moment finding and reframing to be the core of the tool, or want it free and self-hosted.',
@@ -331,6 +491,26 @@ export const COMPETITORS = {
       'OpenShorts is a clipper first: moment scoring, face-tracked reframing, two-speaker and screencast layouts, dubbing into 30+ languages with your own ElevenLabs key. Quso spreads across scheduling and planning too.',
       'OpenShorts Cloud starts at $12/month billed monthly; Quso\'s cheapest paid plan is $29 month to month or $19/month on a yearly commitment.',
       'If you want one app that also plans and schedules your whole social calendar, Quso covers more ground than we do.',
+    ],
+    tldr: [
+      'Vidyo.ai is now Quso: the rebrand went live in January 2025, vidyo.ai redirects to quso.ai, and accounts carried over. Quso has a free plan of 75 credits a month at 720p and paid plans from $19/month billed yearly ($29 monthly).',
+      'Quso grew into a social suite (scheduling, a content planner, analytics) around the original clipper. OpenShorts stays a clipper: two-speaker, screencast and webcam-inset layouts, and dubbing into 30+ languages with your own ElevenLabs key.',
+      'OpenShorts is open source: free when you run it yourself, or hosted from $12/month billed monthly.',
+    ],
+    fit:
+      'Quso kept the Vidyo.ai clipper and built a social suite around it. If the clipper is the part you use, OpenShorts replaces that part and leaves the scheduling to whatever you already use, or posts straight to TikTok, Reels and Shorts itself.',
+    watermark:
+      'Quso\'s pricing page lists 75 free credits a month at 720p without stating a watermark either way; OpenShorts says it plainly: free Cloud clips are watermarked, self-hosted and paid ones are not.',
+    stay: [
+      'You use the content planner, scheduling and analytics, which a clipper does not replace.',
+      'You can commit to a yearly plan: it doubles the credits.',
+      'Its 75-minute free plan already covers what you clip each month.',
+    ],
+    migrate: [
+      'Download what you need: free-plan data is kept 7 days.',
+      'Compare per minute on the billing you would actually use. Quso\'s yearly plans double the credits, so month to month it costs about three times as much per minute.',
+      'Run one long source through OpenShorts (first video free up to 60 minutes) and check the two-speaker and screencast layouts on your footage.',
+      'Decide where scheduling lives: OpenShorts posts directly to TikTok, Instagram Reels and YouTube Shorts, but it has no content planner or analytics.',
     ],
     bestFor:
       'Quso is the better pick if you want clipping, scheduling and analytics in one subscription. OpenShorts is the better pick if clipping quality and control are the job, or you want it free and self-hosted.',
@@ -394,6 +574,21 @@ export const COMPETITORS = {
       'OpenShorts adds layouts a single centred crop cannot do: two speakers stacked, screen recordings over the presenter, a webcam inset enlarged. It also dubs into 30+ languages with your own ElevenLabs key.',
       '2short.ai is cheaper per hour of source than OpenShorts Cloud and keeps its free exports unwatermarked, which ours are not. That is a real advantage.',
     ],
+    fit:
+      '2short.ai is the cheapest per hour and does one thing well: a face-tracked crop from a YouTube link. OpenShorts is the alternative when the footage is not that simple, or not on YouTube.',
+    watermark:
+      '2short.ai does not watermark, even on its free plan; that is a real advantage over our hosted free plan, which does.',
+    stay: [
+      'Your sources are already on YouTube and one centred, face-tracked crop is enough.',
+      'Price per hour decides it: 5 hours of analysis for $9.90/month is hard to beat.',
+      'You want unwatermarked free exports, which its free plan gives and our hosted free plan does not.',
+    ],
+    migrate: [
+      'Upload recordings straight from disk: OpenShorts takes a local file on every plan, so there is no need to put them on YouTube or Drive first.',
+      'Try a two-person episode or a screen recording first; that is where the layouts differ most from a single crop.',
+      'Size it in minutes: 2short.ai meters hours analysed, OpenShorts Cloud meters minutes of source, from 100 minutes for $12/month.',
+      'Self-host if the watermark on our free plan is the issue: the MIT edition never adds one.',
+    ],
     bestFor:
       '2short.ai is the better pick if your sources are YouTube videos, you want the lowest price per hour and a single face-tracked crop is enough. OpenShorts is the better pick for uploads, podcasts with two people on camera, screen recordings, or a free self-hosted setup.',
     tldr: [
@@ -451,6 +646,21 @@ export const COMPETITORS = {
       'OpenShorts clips long videos on every plan, the free one included; SendShort starts long-video clipping at $29/month.',
       'OpenShorts reframes with face tracking plus two-speaker, screencast and webcam-inset layouts, which is the hard part of clipping a podcast or a stream.',
       'SendShort makes more kinds of short video than we do. If faceless or prompt-to-video content is the plan, it covers that and we do not.',
+    ],
+    fit:
+      'SendShort is a suite of short-video formats, and clipping long videos is one of them, from its $29 plan. OpenShorts is only the clipping, on every plan, the free one included.',
+    watermark:
+      'SendShort has no free plan; its Starter plan ($19/month, $15 yearly) exports without a watermark but does not include long-video clipping.',
+    stay: [
+      'You make faceless, avatar or prompt-to-video shorts, which OpenShorts does not.',
+      'You need captions translated into 100+ languages with AI voice-over.',
+      'One subscription for many formats matters more to you than depth in clipping.',
+    ],
+    migrate: [
+      'If you subscribed only to clip long videos, note that SendShort offers a refund within 24 hours of paying.',
+      'Check which plan you are really on: long-video clipping starts on Professional ($29/month, $23 yearly), not Starter.',
+      'Clip the same long recording in OpenShorts; the free plan clips your first video whole up to 60 minutes.',
+      'Keep SendShort for the faceless and avatar formats if you use them, and move the clipping alone.',
     ],
     bestFor:
       'SendShort is the better pick if you want one subscription for faceless videos, avatars and clips. OpenShorts is the better pick if the job is turning your own long recordings into clips, cheaply or self-hosted.',
