@@ -1,5 +1,7 @@
 # OpenShorts.app
 
+Open source AI clip generator: turn long videos into viral 9:16 Shorts, TikToks and Reels. A self-hostable Opus Clip alternative (MIT).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
@@ -15,6 +17,8 @@
 
 Two people on camera? OpenShorts stacks them instead of shrinking the wide shot, puts the captions on the seam where they cover nobody, and switches back to a face-tracked crop when the cut goes to one person. The AI picks the layout per video; nothing to configure.
 
+**Cloud version:** don't want to run it yourself? [OpenShorts Cloud](https://www.openshorts.app/?ref=github) is the same software on a GPU. Free plan with a watermark (20 min/mo, no credit card), paid plans from $12/mo with no watermark.
+
 **Two ways to run it, same software either way:**
 
 |  | Self-hosted (this repo) | Hosted on [openshorts.app](https://www.openshorts.app/) |
@@ -28,6 +32,15 @@ Two people on camera? OpenShorts stacks them instead of shrinking the wide shot,
 | **Your data** | Your server | Ours |
 
 Self-hosting is genuinely free and always will be. It costs you a machine, your own API keys and the time to keep it running. The hosted plans exist to cover that hardware and those keys, not to unlock features.
+
+**Compared to Opus Clip, Klap, Vizard** (public pricing pages, checked October 2026; full breakdown at [openshorts.app/alternatives](https://www.openshorts.app/alternatives)):
+
+| | Free plan | Paid from | Open source |
+|---|---|---|---|
+| **OpenShorts** | Self-hosted: free, no watermark, no cap. Cloud: 20 min/mo with watermark | $12/mo (Cloud, 100 min) | **Yes, MIT** |
+| **Opus Clip** | 60 min/mo, watermarked, export within 3 days | $15/mo (Starter, 150 min), billed per minute of source | No |
+| **Klap** | 1 video to try, no ongoing free plan | $14/mo billed yearly (100 clips), billed per clip | No |
+| **Vizard** | 60 min/mo, 720p, watermarked | $14.50/mo billed yearly ($29 monthly), billed per minute uploaded | No |
 
 https://github.com/user-attachments/assets/b45fa983-16b4-48b5-ac5b-a267836b9ad9
 
@@ -150,10 +163,10 @@ Videos generated with OpenShorts AI Shorts — no camera, no studio, no actors:
 
 | Feature | OpenShorts | Opus Clip | CapCut | Vizard | Klap | Descript |
 |---------|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Price** | **Free self-hosted**<br>from $12/mo hosted | $15-29/mo | $8/mo | $15-20/mo | $23-63/mo | $24-65/mo |
+| **Price** | **Free self-hosted**<br>from $12/mo hosted | $15-29/mo | $8/mo | $14.50/mo yearly<br>$29 monthly | from $14/mo yearly | $24-65/mo |
 | **Self-hosted** | **Yes** | No | No | No | No | No |
 | **Open source** | **Yes** | No | No | No | No | No |
-| **Watermark** | **Never self-hosted**<br>free plan only when hosted | Free tier | Some | Free tier | Free tier | Free tier |
+| **Watermark** | **Never self-hosted**<br>free plan only when hosted | Free tier | Some | Free tier | No free plan<br>(1 trial video) | Free tier |
 | **Upload limits** | **None self-hosted**<br>by plan when hosted | 10-30GB | Credit-based | 60min-10hr | 10-100 vids/mo | 60min-40hr |
 | **AI clip detection** | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Smart 9:16 reframing** | Yes | Yes | Yes | Yes | Yes | No |

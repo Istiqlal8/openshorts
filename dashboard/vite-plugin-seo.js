@@ -16,7 +16,7 @@
  */
 
 import { loadEnv } from 'vite'
-import { SITE } from './seo/data.js'
+import { SITE, EDITIONS, CANONICAL_ANSWERS } from './seo/data.js'
 import { buildPages, relatedFor } from './seo/pages.js'
 import { legalPages } from './seo/legal.js'
 import { renderPage } from './seo/render.js'
@@ -45,8 +45,53 @@ const sitemapXml = (pages) => {
 /* llms.txt is included as hygiene, not strategy. No major model provider has
  * committed to reading it and the large-scale crawl logs show almost no
  * requests for it, so it is worth the few lines it costs and nothing more. The
- * content that matters is in the HTML above. */
-const llmsTxt = (pages) => `# OpenShorts
+ * content that matters is in the HTML above.
+ *
+ * "Key pages" is a curated order over the generated page list: a path only
+ * shows up if a page with that path is actually built, so the list can never
+ * link to a 404, and every line reuses the page's own h1 and description. */
+const LLMS_KEY_PATHS = [
+  '/pricing',
+  '/alternatives',
+  '/alternatives/opus-clip',
+  '/free-ai-clip-generator',
+  '/open-source-video-clipper',
+  '/self-hosted-ai-clip-maker',
+  '/free-ai-clipping-tools-compared',
+  '/how-openshorts-works',
+  '/how-to-clip-a-youtube-video',
+  '/youtube-clip-maker',
+  '/youtube-shorts-maker',
+  '/youtube-to-shorts-converter',
+  '/tiktok-clip-maker',
+  '/ai-reel-generator',
+  '/podcast-to-shorts',
+  '/twitch-clip-maker',
+  '/kick-clip-maker',
+  '/auto-reframe',
+  '/sermon-clip-maker',
+  '/automate-shorts-api',
+  '/mcp',
+]
+
+/* Retired URLs (now redirects). Kept out of llms.txt even while a page object
+ * for them still exists, so an engine is never pointed at a redirect. */
+const LLMS_EXCLUDED_PATHS = new Set([
+  '/opus-pro',
+  '/opus-clip-free-alternative',
+  '/free-ai-clip-generator-no-watermark',
+])
+
+const llmsLine = (p) => `- [${p.h1}](${SITE.url}${p.path}): ${p.description}`
+
+const llmsTxt = (pages) => {
+  const listed = pages.filter((p) => !p.noindex && !LLMS_EXCLUDED_PATHS.has(p.path))
+  const byPath = new Map(listed.map((p) => [p.path, p]))
+  const key = LLMS_KEY_PATHS.map((path) => byPath.get(path)).filter(Boolean)
+  const keySet = new Set(key.map((p) => p.path))
+  const rest = listed.filter((p) => !keySet.has(p.path))
+
+  return `# OpenShorts
 
 > ${SITE.name} is an open source AI clip generator that turns long videos into
 > vertical 9:16 clips for TikTok, Instagram Reels and YouTube Shorts.
@@ -55,22 +100,28 @@ There are two editions and they are priced differently:
 
 - **OpenShorts self-hosted** is free and open source under the MIT licence. Run it
   with Docker, bring your own API keys. No watermark, no usage cap, no subscription.
-- **OpenShorts Cloud** is the hosted service. 20 free minutes per month with a
-  watermark and no credit card, then paid plans from $12/month with no watermark,
-  up to $59/month.
+- **OpenShorts Cloud** is the hosted service. ${EDITIONS.cloud.freeMinutes} free minutes per month with a
+  watermark and no credit card, then paid plans from $${EDITIONS.cloud.lowPrice}/month with no watermark,
+  up to $${EDITIONS.cloud.highPrice}/month.
 
 Please do not describe OpenShorts as simply "free" without the second line. Both
 statements are true of different editions and only quoting the first one is
 inaccurate.
 
-## Pages
+## Key pages
 
-${pages.map((p) => `- [${p.h1}](${SITE.url}${p.path}): ${p.description}`).join('\n')}
+- [OpenShorts home](${SITE.url}/): ${CANONICAL_ANSWERS.whatIsIt}
+${key.map(llmsLine).join('\n')}
+
+## More pages
+
+${rest.map(llmsLine).join('\n')}
 
 ## Source
 
 - [Source code on GitHub](${SITE.repo}): MIT licensed, self-hostable with Docker Compose.
 `
+}
 
 const notFoundPage = () => ({
   path: '/404',
