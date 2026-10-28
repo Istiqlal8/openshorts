@@ -182,7 +182,13 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
     <a style="${S.a}" href="/video-aspect-ratio-converter">Video to 9:16 converter</a> &middot;
     <a style="${S.a}" href="/auto-clip">Auto clip</a> &middot;
     <a style="${S.a}" href="/youtube-automation">YouTube automation</a> &middot;
-    <a style="${S.a}" href="/free-ai-clip-generator-no-watermark">No-watermark clip generator</a> &middot;
+    <a style="${S.a}" href="/youtube-clip-maker">YouTube clip maker</a> &middot;
+    <a style="${S.a}" href="/youtube-shorts-maker">YouTube Shorts maker</a> &middot;
+    <a style="${S.a}" href="/tiktok-clip-maker">TikTok clip maker</a> &middot;
+    <a style="${S.a}" href="/ai-reel-generator">AI reel generator</a> &middot;
+    <a style="${S.a}" href="/twitch-clip-maker">Twitch clip maker</a> &middot;
+    <a style="${S.a}" href="/kick-clip-maker">Kick clip maker</a> &middot;
+    <a style="${S.a}" href="/pricing">Pricing</a> &middot;
     <a style="${S.a}" href="/open-source-video-clipper">Open source video clipper</a> &middot;
     <a style="${S.a}" href="/open-source-ai-video-generator">Open source AI video generator</a> &middot;
     <a style="${S.a}" href="/podcast-to-shorts">Podcast clips</a> &middot;
@@ -191,9 +197,7 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
     <a style="${S.a}" href="/alternatives">All alternatives compared</a> &middot;
     <a style="${S.a}" href="/alternativas">Alternativas (ES)</a> &middot;
     <a style="${S.a}" href="/opus-clip-pricing">Opus Clip pricing</a> &middot;
-    <a style="${S.a}" href="/opus-clip-free-alternative">Free Opus Clip alternative</a> &middot;
     <a style="${S.a}" href="/opus-ai">Opus AI</a> &middot;
-    <a style="${S.a}" href="/opus-pro">Opus Pro</a> &middot;
     <a style="${S.a}" href="/vizard-ai">Vizard AI</a> &middot;
     <a style="${S.a}" href="/vizard-ai-video-to-text">Vizard AI video to text</a> &middot;
     <a style="${S.a}" href="/alternatives/vidyo-ai">Vidyo.ai (Quso) alternative</a> &middot;

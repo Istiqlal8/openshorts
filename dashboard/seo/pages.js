@@ -18,6 +18,7 @@ import { demoBlock, costCalculator, flowCompare, verdictCards, factTiles } from 
 import { esc } from './render.js'
 import { toolPages } from './tools.js'
 import { autopilotPages } from './autopilot-pages.js'
+import { guidePages } from './guide-pages.js'
 
 const li = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`
 const ol = (items) => `<ol>${items.map((i) => `<li>${i}</li>`).join('')}</ol>`
@@ -2732,7 +2733,7 @@ export function buildPages() {
     relatedTitle: p.relatedTitle || relatedTitleFor(p.path),
   }))
   // The tool and autopilot modules name their own neighbours.
-  return [...pages, ...autopilotPages(), ...toolPages()]
+  return [...pages, ...guidePages(), ...autopilotPages(), ...toolPages()]
 }
 
 /* Each page links to three siblings. Small, described clusters beat a single

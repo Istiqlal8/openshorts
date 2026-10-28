@@ -857,7 +857,7 @@ watermark-free hosted free plan is rare, and why the generous ones tend to cap
 something else instead: links only, minutes analysed, a short storage window. The
 structural exception is software you run yourself, where there is no vendor
 cost to recover. The reasoning is laid out on
-<a href="/free-ai-clip-generator-no-watermark">no-watermark AI clips</a>.</p>
+<a href="/free-ai-clip-generator">the free AI clip generator page</a>.</p>
 <p>The OpenShorts Cloud free plan follows the hosted rule and says so: its clips
 are watermarked, and paid plans from ${money(STARTER.monthly)}/month are not. The
 <a href="/pricing">pricing page</a> has every plan.</p>

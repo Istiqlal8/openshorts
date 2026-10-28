@@ -1074,7 +1074,13 @@ export default function Landing({ onLaunchApp }) {
             <a href="/video-aspect-ratio-converter" className="hover:text-ink transition-colors">video to 9:16 converter</a>
             <a href="/auto-clip" className="hover:text-ink transition-colors">auto clip</a>
             <a href="/youtube-automation" className="hover:text-ink transition-colors">youtube automation</a>
-            <a href="/free-ai-clip-generator-no-watermark" className="hover:text-ink transition-colors">no watermark</a>
+            <a href="/youtube-clip-maker" className="hover:text-ink transition-colors">youtube clip maker</a>
+            <a href="/youtube-shorts-maker" className="hover:text-ink transition-colors">youtube shorts maker</a>
+            <a href="/tiktok-clip-maker" className="hover:text-ink transition-colors">tiktok clip maker</a>
+            <a href="/ai-reel-generator" className="hover:text-ink transition-colors">ai reel generator</a>
+            <a href="/twitch-clip-maker" className="hover:text-ink transition-colors">twitch clip maker</a>
+            <a href="/kick-clip-maker" className="hover:text-ink transition-colors">kick clip maker</a>
+            <a href="/pricing" className="hover:text-ink transition-colors">pricing</a>
             <a href="/open-source-video-clipper" className="hover:text-ink transition-colors">open source video clipper</a>
             <a href="/podcast-to-shorts" className="hover:text-ink transition-colors">podcast clips</a>
             <a href="/youtube-to-shorts-converter" className="hover:text-ink transition-colors">youtube to shorts</a>
@@ -1083,9 +1089,7 @@ export default function Landing({ onLaunchApp }) {
             <a href="/alternativas" className="hover:text-ink transition-colors">alternativas</a>
             <a href="/alternatives/opus-clip" className="hover:text-ink transition-colors">vs opus clip</a>
             <a href="/opus-clip-pricing" className="hover:text-ink transition-colors">opus clip pricing</a>
-            <a href="/opus-clip-free-alternative" className="hover:text-ink transition-colors">free opus clip alternative</a>
             <a href="/opus-ai" className="hover:text-ink transition-colors">opus ai</a>
-            <a href="/opus-pro" className="hover:text-ink transition-colors">opus pro</a>
             <a href="/vizard-ai" className="hover:text-ink transition-colors">vizard ai</a>
             <a href="/vizard-ai-video-to-text" className="hover:text-ink transition-colors">vizard ai video to text</a>
             <a href="/alternatives/vidyo-ai" className="hover:text-ink transition-colors">vidyo ai (quso)</a>
