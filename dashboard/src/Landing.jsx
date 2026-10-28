@@ -251,7 +251,12 @@ const FAQItem = ({ question, answer, isOpen, onClick }) => (
 export default function Landing({ onLaunchApp }) {
   const { billingEnabled } = useAuth();
   const [openFaq, setOpenFaq] = React.useState(null);
-  const [heroUrl, setHeroUrl] = React.useState('');
+  // Start from whatever was typed into the static paste box of the crawler
+  // fallback (seo/landing-fallback.js) before this component mounted: the
+  // fallback DOM is still in #root while the first render runs.
+  const [heroUrl, setHeroUrl] = React.useState(() => {
+    try { return document.getElementById('seo-hero-url')?.value || ''; } catch { return ''; }
+  });
   const [heroDemo, setHeroDemo] = React.useState(0);
   const [cropDemo, setCropDemo] = React.useState(0);
   // Floating CTA: shown once the hero's own input has scrolled away, hidden
@@ -358,8 +363,24 @@ export default function Landing({ onLaunchApp }) {
 
   const faqs = [
     {
-      question: "Is OpenShorts really free? What's the catch?",
-      answer: "There is no catch, but there are two different things on offer. (1) Self-hosted is 100% free and open source: you run it with Docker on your own machine, bring your own API keys, and there are no watermarks, no usage limits and no subscription. What it costs you is hardware and time. On a typical CPU an 8-minute video takes 5 to 8 minutes to process, and you need your own Google Gemini key (required, free tier is 1,500 requests/day), plus ElevenLabs for dubbing and fal.ai for AI Shorts if you want those. (2) Hosted at openshorts.app is the same software with the running costs covered: our NVIDIA GPU clips that same 8-minute video in about 50 seconds, the Gemini key is included so there is nothing to create or paste, auto-posting to TikTok, Instagram and YouTube is already wired up, and your clips are stored and re-openable from any browser. Its free plan clips your first video whole up to 60 minutes, then 20 minutes a month, with a watermark and no credit card; paid plans start at $12/mo for 100 minutes without watermark. So: free if you are happy to run it yourself, paid if you would rather it just ran fast. For reference, Opus Clip starts at $15/month and bills a credit per minute of source video."
+      question: "Is OpenShorts really free?",
+      answer: "Self-hosting is free under the MIT licence, with no watermark and no cap; OpenShorts Cloud has a free plan (your first video up to 60 minutes, then 20 minutes a month, watermarked) and paid plans from $12/month. There is no catch, but there are two different things on offer. (1) Self-hosted is 100% free and open source: you run it with Docker on your own machine, bring your own API keys, and there are no watermarks, no usage limits and no subscription. What it costs you is hardware and time. On a typical CPU an 8-minute video takes 5 to 8 minutes to process, and you need your own Google Gemini key (required, free tier is 1,500 requests/day), plus ElevenLabs for dubbing and fal.ai for AI Shorts if you want those. (2) Hosted at openshorts.app is the same software with the running costs covered: our NVIDIA GPU clips that same 8-minute video in about 50 seconds, the Gemini key is included so there is nothing to create or paste, auto-posting to TikTok, Instagram and YouTube is already wired up, and your clips are stored and re-openable from any browser. Its free plan clips your first video whole up to 60 minutes, then 20 minutes a month, with a watermark and no credit card; paid plans start at $12/mo for 100 minutes without watermark. So: free if you are happy to run it yourself, paid if you would rather it just ran fast. For reference, Opus Clip starts at $15/month and bills a credit per minute of source video."
+    },
+    {
+      question: "Do the clips have a watermark?",
+      answer: "Only on the free Cloud plan. Clips made on the free plan of OpenShorts Cloud carry a small watermark; every paid plan, from $12/month, has none, and upgrading removes the mark from the clips you already made. The self-hosted edition, free under MIT, never adds one."
+    },
+    {
+      question: "Do I need a credit card to start?",
+      answer: "No. The free plan of OpenShorts Cloud needs no credit card: your first video is clipped free up to 60 minutes, then you get 20 free minutes every month, with a watermark. You only add a card if you choose a paid plan, from $12/month."
+    },
+    {
+      question: "How many clips do I get from one video?",
+      answer: "Between 3 and 15, each 15 to 60 seconds long. The AI scores every moment of the video and keeps the ones that hold up as standalone clips, so the number depends on the source, not on a fixed quota."
+    },
+    {
+      question: "Can I clip someone else's YouTube video?",
+      answer: "Only if you own it or have the rights or permission to use it. Before a video is processed, OpenShorts asks you to confirm you own the content or have the rights to it, and you are responsible for what you submit. Fair use depends on the country and on how the clip is used, so it is never guaranteed; reuploading someone else's video without permission is copyright infringement, and platforms remove it and strike the account. Clip your own videos, channels you manage, or footage you have licensed."
     },
     {
       question: "What is OpenShorts and how does it work?",
@@ -465,7 +486,8 @@ export default function Landing({ onLaunchApp }) {
             <p className="eyebrow mb-6">00 · Free AI Clip Generator · Open Source</p>
 
             <h1 className="hero-h1 mb-6">
-              <span className="block">long video in.</span>
+              <span className="block">free ai clip maker:</span>{' '}
+              <span className="block">long video in,</span>{' '}
               <span className="block"><em>viral shorts</em> out.</span>
             </h1>
 
@@ -572,7 +594,7 @@ export default function Landing({ onLaunchApp }) {
       {/* Features Section */}
       <section id="features" className="py-20 px-6 border-t border-rule">
         <div className="max-w-6xl mx-auto">
-          <SectionHeader eyebrow="01 · Features" title="everything it does, on real clips">
+          <SectionHeader eyebrow="01 · Features" title="AI clipping that finds the moments worth posting">
             Screens from the app and clips it made. Pick a feature, or let it play.
           </SectionHeader>
           <FeatureShowcase />
@@ -683,7 +705,7 @@ export default function Landing({ onLaunchApp }) {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-20 px-6 border-t border-rule">
         <div className="max-w-4xl mx-auto">
-          <SectionHeader eyebrow="04 · Pipeline" title="How It Works">
+          <SectionHeader eyebrow="04 · Pipeline" title="How to turn a long video into Shorts with AI (5 steps)">
             From long-form video to viral-ready clips in 5 automated steps.
           </SectionHeader>
           <div className="space-y-8">
@@ -746,7 +768,7 @@ export default function Landing({ onLaunchApp }) {
       {billingEnabled && (
         <section id="pricing" className="py-20 px-6 border-t border-rule">
           <div className="max-w-6xl mx-auto">
-            <SectionHeader eyebrow="06 · Pricing" title="Simple, transparent pricing">
+            <SectionHeader eyebrow="06 · Pricing" title="Free plan vs paid: what you actually get">
               Your first video is free, up to 60 minutes. Then 20 free minutes a month — no credit card. Cancel anytime.
             </SectionHeader>
             <PricingSection onRequireLogin={() => { window.location.hash = '#/pricing'; }} />
@@ -757,8 +779,8 @@ export default function Landing({ onLaunchApp }) {
       {/* Comparison Table */}
       <section id="comparison" className="py-20 px-6 border-t border-rule">
         <div className="max-w-4xl mx-auto">
-          <SectionHeader eyebrow="07 · Comparison" title="Free Clip Generator vs Paid Alternatives">
-            Hosted OpenShorts starts at $12/mo, or self-host it free. Opus Clip starts at $15/month, Kapwing at $24/month.
+          <SectionHeader eyebrow="07 · Comparison" title="OpenShorts vs Opus Clip, Klap and Vizard">
+            Hosted OpenShorts starts at $12/mo billed monthly, or self-host it free. Opus Clip starts at $15/month, Klap at $14 and Vizard at $14.50 a month on yearly billing, Kapwing at $24/month.
           </SectionHeader>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -869,7 +891,7 @@ export default function Landing({ onLaunchApp }) {
       {/* FAQ Section */}
       <section id="faq" className="py-20 px-6 border-t border-rule">
         <div className="max-w-3xl mx-auto">
-          <SectionHeader eyebrow="10 · FAQ" title="Frequently Asked Questions">
+          <SectionHeader eyebrow="10 · FAQ" title="FAQ: free AI clipping, watermarks and limits">
             Everything you need to know about OpenShorts, from setup to features.
           </SectionHeader>
           <div className="divide-y divide-rule border-y border-rule">
@@ -893,10 +915,10 @@ export default function Landing({ onLaunchApp }) {
         <div className="max-w-5xl mx-auto">
           <details className="group">
             <summary className="list-none cursor-pointer flex items-center justify-between gap-6 [&::-webkit-details-marker]:hidden">
-              <span>
+              <div>
                 <span className="eyebrow block mb-3">11 · Self-Hosting</span>
-                <span className="font-display text-2xl md:text-3xl lowercase text-ink">running it yourself? the api keys and the stack</span>
-              </span>
+                <h2 className="font-display text-2xl md:text-3xl lowercase text-ink">Open source: run the same pipeline on your own hardware</h2>
+              </div>
               <ChevronDown size={22} className="text-muted shrink-0 transition-transform group-open:rotate-180" />
             </summary>
             {/* API Keys Section */}
