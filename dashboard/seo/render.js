@@ -193,8 +193,91 @@ td.os{color:var(--ink)}
 [hidden]{display:none!important}
 footer.site{border-top:1px solid var(--rule);padding:2.5rem 0;font-size:.85rem;color:var(--muted)}
 footer.site a{color:var(--muted)}
-footer.site .row{display:flex;flex-wrap:wrap;gap:1.25rem;margin-bottom:1rem}
+footer.site .cols{display:grid;gap:1.5rem 2rem;grid-template-columns:repeat(auto-fill,minmax(11.5rem,1fr));margin-bottom:1.75rem}
+footer.site .col-title{font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:0 0 .6rem}
+footer.site ul{list-style:none;padding:0;margin:0}
+footer.site li{margin:0 0 .4rem}
+footer.site .more{margin:0 0 1rem;line-height:1.9}
+footer.site .more a{margin-right:.9rem;white-space:nowrap}
 ${COMPONENTS_CSS}`
+
+/* Fixed chrome strings (nav, footer headings, breadcrumb, byline, related
+ * block) per page language. Page copy itself lives in the page objects. */
+const I18N = {
+  en: {
+    home: 'Home',
+    nav: { clip: 'Clip generator', tools: 'Free tools', alternatives: 'Alternatives', mcp: 'MCP &amp; API' },
+    cta: 'Get free clips',
+    related: 'Related pages',
+    by: 'By the OpenShorts team',
+    published: 'Published',
+    updated: 'Updated',
+    footer: {
+      product: 'OpenShorts',
+      compare: 'Compare',
+      clipTools: 'Clip tools',
+      automate: 'Automate',
+      tools: 'Free tools',
+      more: 'More comparisons',
+      note: `OpenShorts self-hosted is free and open source under MIT. OpenShorts Cloud
+  is the hosted service: your first video free up to 60 minutes, then 20 free
+  minutes a month, paid plans from $12/month.`,
+      lastUpdated: 'Last updated',
+    },
+  },
+  es: {
+    home: 'Inicio',
+    nav: { clip: 'Generador de clips', tools: 'Herramientas gratis', alternatives: 'Alternativas', mcp: 'MCP y API' },
+    cta: 'Clips gratis',
+    related: 'Páginas relacionadas',
+    by: 'Por el equipo de OpenShorts',
+    published: 'Publicado',
+    updated: 'Actualizado',
+    footer: {
+      product: 'OpenShorts',
+      compare: 'Comparativas',
+      clipTools: 'Herramientas de clips',
+      automate: 'Automatizar',
+      tools: 'Herramientas gratis',
+      more: 'Más comparativas',
+      note: `OpenShorts autoalojado es gratis y de código abierto con licencia MIT.
+  OpenShorts Cloud es el servicio alojado: tu primer vídeo gratis hasta 60
+  minutos, después 20 minutos gratis al mes, planes de pago desde 12 $/mes.`,
+      lastUpdated: 'Última actualización',
+    },
+  },
+}
+const strings = (page) => I18N[page.lang] || I18N.en
+
+/* English/Spanish twins, for hreflang. A page can carry its own
+ * `alternates: {en, es}`; this map covers the pairs that exist today. Both
+ * sides of a pair must name each other, so it is keyed by either path. */
+const ALTERNATE_PAIRS = [
+  ['/alternatives', '/alternativas'],
+  ['/terms', '/terminos'],
+  ['/privacy', '/privacidad'],
+  ['/legal-notice', '/aviso-legal'],
+  ['/refunds', '/reembolsos'],
+  ['/report-content', '/reportar-contenido'],
+]
+const ALTERNATES = Object.fromEntries(
+  ALTERNATE_PAIRS.flatMap(([en, es]) => [[en, { en, es }], [es, { en, es }]])
+)
+
+const hreflangLinks = (page) => {
+  const alt = page.alternates || ALTERNATES[page.path]
+  if (page.noindex || !alt?.en || !alt?.es) return ''
+  return [
+    `<link rel="alternate" hreflang="en" href="${SITE.url}${alt.en}">`,
+    `<link rel="alternate" hreflang="es" href="${SITE.url}${alt.es}">`,
+    `<link rel="alternate" hreflang="x-default" href="${SITE.url}${alt.en}">`,
+  ].join('\n') + '\n'
+}
+
+/* Tools and hubs are sites-within-the-site, not authored articles. */
+const WEBSITE_PATHS = new Set(['/', '/tools'])
+const ogType = (page) =>
+  page.ogType || (page.tool || page.noindex || WEBSITE_PATHS.has(page.path) ? 'website' : 'article')
 
 /* Organization is emitted once per page under a stable @id so every other node
  * can point at it instead of restating the brand. That single shared identifier
@@ -213,7 +296,7 @@ const breadcrumbNode = (page) => ({
   '@type': 'BreadcrumbList',
   '@id': `${SITE.url}${page.path}#breadcrumb`,
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: SITE.url },
+    { '@type': 'ListItem', position: 1, name: strings(page).home, item: SITE.url },
     ...(page.breadcrumb || []).map((c, i) => ({
       '@type': 'ListItem',
       position: i + 2,
@@ -257,7 +340,7 @@ const buildGraph = (page) => {
         name: page.h1,
         description: page.description,
         url: `${SITE.url}${page.path}`,
-        inLanguage: 'en-US',
+        inLanguage: page.lang === 'es' ? 'es-ES' : 'en-US',
         publisher: { '@id': `${SITE.url}/#organization` },
         ...(page.tool ? { dateModified: page.updated || SITE.updated } : {}),
       }
@@ -269,61 +352,100 @@ const buildGraph = (page) => {
   return { '@context': 'https://schema.org', '@graph': graph }
 }
 
-const NAV = `
+/* The CTA goes to `/`: a new visitor lands on the landing page, whose hero is
+ * the paste box, so there is no need to skip it with #app. */
+const nav = (t) => `
 <header class="site"><div class="wrap">
   <a class="brand" href="${SITE.url}/"><img src="/logo-openshorts.png" alt="OpenShorts logo" width="26" height="26">OpenShorts</a>
   <nav class="nav">
-    <a href="/free-ai-clip-generator">Clip generator</a>
-    <a href="/tools" class="keep">Free tools</a>
-    <a href="/alternatives">Alternatives</a>
-    <a href="/mcp">MCP &amp; API</a>
+    <a href="/free-ai-clip-generator">${t.nav.clip}</a>
+    <a href="/tools" class="keep">${t.nav.tools}</a>
+    <a href="${t === I18N.es ? '/alternativas' : '/alternatives'}">${t.nav.alternatives}</a>
+    <a href="/mcp">${t.nav.mcp}</a>
     <a href="${SITE.repo}" rel="noopener">GitHub</a>
   </nav>
-  <a class="cta" href="${SITE.url}/">Get free clips</a>
+  <a class="cta" href="${SITE.url}/">${t.cta}</a>
 </div></header>`
 
-const footer = (_related) => `
+/* Footer link map. The money pages (the comparison hubs, the clip makers,
+ * pricing) sit in the columns so every page on the site links to them; the
+ * narrow satellites share one compact line and are otherwise reached through
+ * /alternatives. Labels are page names, so they stay in English. */
+const FOOTER_COLUMNS = [
+  ['product', [
+    [`${SITE.url}/`, 'OpenShorts'],
+    ['/free-ai-clip-generator', 'Free AI clip generator'],
+    ['/pricing', 'Pricing'],
+    ['/how-openshorts-works', 'How it works'],
+    ['/open-source-video-clipper', 'Open source video clipper'],
+    ['/self-hosted-ai-clip-maker', 'Self-hosted AI clip maker'],
+    ['/open-source-ai-video-generator', 'Open source AI video generator'],
+    [SITE.repo, 'Source on GitHub'],
+  ]],
+  ['compare', [
+    ['/alternatives', 'Alternatives compared'],
+    ['/alternatives/opus-clip', 'Opus Clip alternative'],
+    ['/alternatives/klap', 'Klap alternative'],
+    ['/alternatives/vizard', 'Vizard alternative'],
+    ['/alternatives/submagic', 'Submagic alternative'],
+    ['/opus-clip-pricing', 'Opus Clip pricing'],
+    ['/free-ai-clipping-tools-compared', 'Free AI clipping tools compared'],
+    ['/alternativas', 'Alternativas (ES)'],
+  ]],
+  ['clipTools', [
+    ['/youtube-clip-maker', 'YouTube clip maker'],
+    ['/youtube-shorts-maker', 'YouTube Shorts maker'],
+    ['/tiktok-clip-maker', 'TikTok clip maker'],
+    ['/ai-reel-generator', 'AI reel generator'],
+    ['/twitch-clip-maker', 'Twitch clip maker'],
+    ['/kick-clip-maker', 'Kick clip maker'],
+    ['/podcast-to-shorts', 'Podcast to Shorts'],
+    ['/auto-reframe', 'Auto reframe'],
+    ['/how-to-clip-a-youtube-video', 'How to clip a YouTube video'],
+    ['/gta-5-clips', 'GTA 5 clips'],
+  ]],
+  ['automate', [
+    ['/mcp', 'MCP server and API'],
+    ['/automate-shorts-api', 'Automate shorts with the API'],
+    ['/n8n-youtube-shorts-automation', 'n8n YouTube Shorts automation'],
+    ['/auto-clip', 'Auto clip'],
+    ['/youtube-automation', 'YouTube automation'],
+  ]],
+  ['tools', [
+    ['/tools', 'All free tools'],
+    ['/youtube-transcript-generator', 'YouTube transcript generator'],
+    ['/youtube-tag-generator', 'YouTube tag and title generator'],
+    ['/video-aspect-ratio-converter', 'Video to 9:16 converter'],
+    ['/youtube-to-shorts-converter', 'YouTube to Shorts converter'],
+  ]],
+]
+
+const FOOTER_MORE = [
+  ['/opus-ai', 'Opus AI'],
+  ['/vizard-ai', 'Vizard AI'],
+  ['/vizard-ai-video-to-text', 'Vizard AI video to text'],
+  ['/submagic-reviews', 'Submagic review'],
+  ['/alternatives/vidyo-ai', 'Vidyo.ai (Quso)'],
+  ['/alternatives/2short', '2short AI'],
+  ['/alternatives/sendshort', 'SendShort'],
+]
+
+const footerLink = ([href, label]) =>
+  `<a href="${esc(href)}"${href.startsWith('https://github.com') ? ' rel="noopener"' : ''}>${esc(label)}</a>`
+
+const footer = (t) => `
 <footer class="site"><div class="wrap">
-  <div class="row">
-    <a href="${SITE.url}/">OpenShorts</a>
-    <a href="${SITE.repo}" rel="noopener">Source on GitHub</a>
-    <a href="/free-ai-clip-generator">Free AI clip generator</a>
-    <a href="/free-ai-clip-generator-no-watermark">No-watermark clip generator</a>
-    <a href="/open-source-video-clipper">Open source video clipper</a>
-    <a href="/open-source-ai-video-generator">Open source AI video generator</a>
-    <a href="/podcast-to-shorts">Podcast clips</a>
-    <a href="/youtube-to-shorts-converter">YouTube to Shorts converter</a>
-    <a href="/gta-5-clips">GTA 5 clips</a>
-    <a href="/how-openshorts-works">How it works</a>
-    <a href="/alternatives">Alternatives compared</a>
-    <a href="/alternativas">Alternativas (ES)</a>
-    <a href="/mcp">MCP server and API</a>
-    <a href="/automate-shorts-api">Automate shorts</a>
+  <div class="cols">
+${FOOTER_COLUMNS.map(
+  ([key, links]) => `    <div>
+      <p class="col-title">${esc(t.footer[key])}</p>
+      <ul>${links.map((l) => `<li>${footerLink(l)}</li>`).join('')}</ul>
+    </div>`
+).join('\n')}
   </div>
-  <div class="row">
-    <a href="/tools">Free tools</a>
-    <a href="/youtube-transcript-generator">YouTube transcript generator</a>
-    <a href="/youtube-tag-generator">YouTube tag, title and description generator</a>
-    <a href="/video-aspect-ratio-converter">Video to 9:16 converter</a>
-    <a href="/auto-clip">Auto clip</a>
-    <a href="/youtube-automation">YouTube automation</a>
-  </div>
-  <div class="row">
-    <a href="/opus-clip-pricing">Opus Clip pricing</a>
-    <a href="/opus-clip-free-alternative">Free Opus Clip alternative</a>
-    <a href="/opus-ai">Opus AI</a>
-    <a href="/opus-pro">Opus Pro</a>
-    <a href="/vizard-ai">Vizard AI</a>
-    <a href="/vizard-ai-video-to-text">Vizard AI video to text</a>
-    <a href="/submagic-reviews">Submagic review</a>
-    <a href="/alternatives/vidyo-ai">Vidyo.ai (Quso)</a>
-    <a href="/alternatives/2short">2short AI</a>
-    <a href="/alternatives/sendshort">SendShort</a>
-  </div>
-  <p>OpenShorts self-hosted is free and open source under MIT. OpenShorts Cloud
-  is the hosted service: your first video free up to 60 minutes, then 20 free
-  minutes a month, paid plans from $12/month.
-  Last updated ${esc(SITE.updated)}.</p>
+  <p class="more"><span class="col-title">${esc(t.footer.more)}:</span> ${FOOTER_MORE.map(footerLink).join(' ')}</p>
+  <p>${t.footer.note}
+  ${esc(t.footer.lastUpdated)} ${esc(SITE.updated)}.</p>
 </div></footer>`
 
 /* Product analytics for the static pages.
@@ -443,7 +565,7 @@ const ctaBlock = (page) => {
 /* Internal links are rendered as a visible block rather than a nav bar because
  * an engine reading the raw HTML has no way to weight a nav differently from
  * body copy — a described link is a stronger signal than a bare one. */
-const relatedBlock = (related, title = 'Related comparisons') =>
+const relatedBlock = (related, title) =>
   !related?.length
     ? ''
     : `<h2>${esc(title)}</h2><div class="cluster">${related
@@ -455,9 +577,10 @@ const relatedBlock = (related, title = 'Related comparisons') =>
 
 export function renderPage(page, related = [], { cta = true, toolScript = '' } = {}) {
   const canonical = `${SITE.url}${page.path}`
+  const t = strings(page)
   const showCta = cta && !page.noindex && page.cta !== false
   const crumbs = [
-    `<a href="${SITE.url}/">Home</a>`,
+    `<a href="${SITE.url}/">${esc(t.home)}</a>`,
     ...(page.breadcrumb || []).map((c) =>
       c.path ? `<a href="${esc(c.path)}">${esc(c.name)}</a>` : esc(c.name)
     ),
@@ -473,11 +596,11 @@ export function renderPage(page, related = [], { cta = true, toolScript = '' } =
 ${page.noindex ? '' : `<link rel="canonical" href="${canonical}">\n`}<meta name="robots" content="${
     page.noindex ? 'noindex,follow' : 'index,follow,max-image-preview:large,max-snippet:-1'
   }">
-<link rel="icon" type="image/png" href="/logo-openshorts.png">
+${hreflangLinks(page)}<link rel="icon" type="image/png" href="/logo-openshorts.png">
 <link rel="stylesheet" href="/fonts.css">
 ${ANALYTICS}
 ${page.noindex ? '' : ATTRIBUTION}
-<meta property="og:type" content="article">
+<meta property="og:type" content="${ogType(page)}">
 <meta property="og:url" content="${canonical}">
 <meta property="og:title" content="${esc(page.title)}">
 <meta property="og:description" content="${esc(page.description)}">
@@ -491,7 +614,7 @@ ${page.noindex ? '' : ATTRIBUTION}
 <script type="application/ld+json">${JSON.stringify(buildGraph(page))}</script>
 </head>
 <body>
-${NAV}
+${nav(t)}
 <main><div class="wrap">
 <div class="crumbs">${crumbs}</div>
 <h1>${esc(page.h1)}</h1>
@@ -504,9 +627,9 @@ ${
   page.noindex
     ? ''
     : `<div class="byline">
-  By the OpenShorts team<span class="sep">·</span>
-  Published <time datetime="${esc(page.published || SITE.published)}">${esc(page.published || SITE.published)}</time><span class="sep">·</span>
-  Updated <time datetime="${esc(page.updated || SITE.updated)}">${esc(page.updated || SITE.updated)}</time>
+  ${esc(t.by)}<span class="sep">·</span>
+  ${esc(t.published)} <time datetime="${esc(page.published || SITE.published)}">${esc(page.published || SITE.published)}</time><span class="sep">·</span>
+  ${esc(t.updated)} <time datetime="${esc(page.updated || SITE.updated)}">${esc(page.updated || SITE.updated)}</time>
 </div>`
 }
 ${
@@ -517,9 +640,9 @@ ${
 ${page.facts ? factTiles(page.facts) : ''}
 ${showCta ? ctaBlock(page) : ''}
 ${page.body}
-${relatedBlock(related, page.relatedTitle)}
+${relatedBlock(related, page.relatedTitle || t.related)}
 </div></main>
-${footer(related)}
+${footer(t)}
 ${page.tool && toolScript ? `<script type="module" src="${esc(toolScript)}"></script>` : ''}
 </body>
 </html>`

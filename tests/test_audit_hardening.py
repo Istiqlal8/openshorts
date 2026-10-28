@@ -299,6 +299,18 @@ def test_video_page_escapes_everything(monkeypatch):
     assert '<html lang="en">' in body
 
 
+@pytest.mark.parametrize("path", ["/gallery", "/video/v1"])
+def test_ugc_pages_are_noindex(monkeypatch, path):
+    meta = {"video_id": "v1", "title": "t", "caption": "c", "duration": 30,
+            "cost_estimate": {"total": 1.0}}
+    monkeypatch.setattr(app_module, "list_video_gallery", lambda n: [meta])
+    resp = _client_call("get", path)
+    assert resp.status_code == 200
+    assert resp.headers["x-robots-tag"] == "noindex, follow"
+    assert '<meta name="robots" content="noindex,follow">' in resp.text
+    assert "index, follow" not in resp.text
+
+
 # --------------------------------------------------------------------------- #
 # main.cap_source_duration(safety=True): the whole-video cap
 # --------------------------------------------------------------------------- #

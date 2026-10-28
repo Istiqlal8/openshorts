@@ -7893,6 +7893,17 @@ def _json_ld(payload: dict) -> str:
     )
 
 
+# The gallery and per-video pages are user-generated output (scraped product
+# pages, model-written scripts) on the API host. They stay crawlable so their
+# links still count, but are kept out of the index: thin, near-duplicate UGC on
+# a second host only dilutes the site's own pages.
+UGC_ROBOTS = "noindex,follow"
+
+
+def _ugc_html_response(html: str) -> HTMLResponse:
+    return HTMLResponse(content=html, headers={"X-Robots-Tag": "noindex, follow"})
+
+
 @app.get("/gallery", response_class=HTMLResponse)
 async def gallery_html_page():
     """SEO gallery page with all generated UGC videos."""
@@ -7958,13 +7969,13 @@ async def gallery_html_page():
         }
     )
 
-    return f'''<!DOCTYPE html>
+    return _ugc_html_response(f'''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI UGC Video Gallery | OpenShorts</title>
 <meta name="description" content="Browse {len(videos)} AI-generated UGC marketing videos. Create viral TikTok and Instagram Reels for your SaaS product.">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="{UGC_ROBOTS}">
 <link rel="canonical" href="{GALLERY_HOST}/gallery">
 <meta property="og:title" content="AI UGC Video Gallery | OpenShorts">
 <meta property="og:type" content="website">
@@ -7986,7 +7997,7 @@ h1{{font-size:28px;font-weight:700;padding:40px 20px 0;text-align:center}}
 <p class="subtitle">{len(videos)} videos generated · Low Cost & Premium modes</p>
 <div class="grid">{cards_html}</div>
 <div style="text-align:center;padding:40px"><a href="{APP_HOST}/" class="cta">Create Your Own UGC Video</a></div>
-</body></html>'''
+</body></html>''')
 
 
 def _http_url_or_empty(value) -> str:
@@ -8048,12 +8059,13 @@ async def video_html_page(video_id: str):
 
     mode_label = "Low Cost" if mode == "lowcost" else "Premium"
 
-    return f'''<!DOCTYPE html>
+    return _ugc_html_response(f'''<!DOCTYPE html>
 <html lang="{language}">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title} - AI UGC Video | OpenShorts</title>
 <meta name="description" content="{caption} {hashtags}">
+<meta name="robots" content="{UGC_ROBOTS}">
 <link rel="canonical" href="{GALLERY_HOST}/video/{video_id}">
 <meta property="og:type" content="video.other">
 <meta property="og:title" content="{title}">
@@ -8099,7 +8111,7 @@ h1{{font-size:22px;font-weight:700;margin-bottom:8px}}
 <br><a href="{APP_HOST}/" class="cta">Create Your Own</a>
 </div>
 </div>
-</body></html>'''
+</body></html>''')
 
 
 def _actor_owner_tag(user_id) -> Optional[str]:
