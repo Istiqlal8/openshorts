@@ -1,0 +1,37 @@
+# Internal deployment on the Rumah Berkarya mini server (Coolify).
+# One public domain on the frontend; the Vite dev server proxies /api, /videos,
+# etc. to the backend, so the browser stays same-origin. Access is gated by
+# Cloudflare Access in front of the domain (self-host mode has no login).
+services:
+  backend:
+    build: .
+    environment:
+      - WHISPER_MODEL=small
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE=int8
+      # The mini server also runs production ERP: one clip job at a time.
+      - MAX_CONCURRENT_JOBS=1
+    volumes:
+      - openshorts-output:/app/output
+      - openshorts-uploads:/app/uploads
+      - openshorts-models:/app/.cache/huggingface
+    cpus: 4
+    mem_limit: 8g
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./dashboard
+      target: dev
+    environment:
+      - VITE_PROXY_TARGET=http://backend:8000
+    cpus: 1
+    mem_limit: 1g
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  openshorts-output:
+  openshorts-uploads:
+  openshorts-models:

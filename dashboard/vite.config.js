@@ -32,7 +32,8 @@ export default defineConfig({
   server: {
     allowedHosts: [
       'openshorts.app',
-      'www.openshorts.app'
+      'www.openshorts.app',
+      'openshort.rumahberkarya.com'
     ],
     proxy: {
       '/api': { target: backend, changeOrigin: true },
