@@ -512,7 +512,7 @@ const tiktokTranscriptPage = () => ({
   cta: false,
   tool: { entry: 'tool-transcript', html: tiktokTool },
   relatedTitle: 'More free tools',
-  related: ['/youtube-transcript-generator', '/tiktok-clip-maker', '/video-aspect-ratio-converter'],
+  related: ['/youtube-transcript-generator', '/platforms/tiktok', '/video-aspect-ratio-converter'],
   body: `
 <h2>How to get the transcript of a TikTok</h2>
 <ol>
@@ -588,7 +588,7 @@ captions off. If TikTok does not answer, try again in a minute.</p>
 clip generator</a> runs its own speech recognition with word-level timing and
 burns the subtitles in. It is built for the other direction too: a long video
 cut into vertical clips, which is what the
-<a href="/tiktok-clip-maker">TikTok clip maker</a> page covers. The free plan is
+<a href="/platforms/tiktok">TikTok clip maker</a> page covers. The free plan is
 20 minutes a month on OpenShorts Cloud; paid plans start at $12 a month on
 <a href="/#pricing">the pricing table</a>, and the open source version is free
 when you self-host it.</p>
