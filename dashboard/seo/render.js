@@ -13,6 +13,7 @@
 
 import { SITE, SAME_AS } from './data.js'
 import { COMPONENTS_CSS, factTiles } from './components.js'
+import { renderNav, NAV_CSS, NAV_SCRIPT } from './nav.js'
 
 const esc = (s) =>
   String(s)
@@ -41,18 +42,6 @@ a{color:var(--ink2);text-decoration:underline;text-underline-offset:3px;
   text-decoration-color:var(--rule2)}
 a:hover{color:var(--ink);text-decoration-color:var(--brass)}
 .wrap{max-width:56rem;margin:0 auto;padding:0 1.5rem}
-header.site{border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--paper);z-index:10}
-header.site .wrap{display:flex;align-items:center;justify-content:space-between;
-  gap:1rem;height:4rem}
-.brand{display:flex;align-items:center;gap:.6rem;font-family:var(--display);
-  font-size:1.15rem;color:var(--ink);text-transform:lowercase;text-decoration:none}
-.brand img{width:26px;height:26px}
-.nav{display:flex;gap:1.25rem;font-size:.875rem;text-transform:lowercase}
-.nav a{text-decoration:none;color:var(--muted);white-space:nowrap}
-@media(max-width:48rem){.nav a:not(.keep){display:none}.brand{font-size:1rem}.cta{padding:.45rem .75rem}}
-.nav a:hover{color:var(--ink)}
-.cta{background:var(--brass);color:oklch(17% 0.03 50);padding:.5rem 1rem;
-  border-radius:8px;font-size:.875rem;font-weight:500;text-decoration:none;white-space:nowrap}
 main{padding:3rem 0 4rem}
 .crumbs{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;
   text-transform:uppercase;color:var(--muted);margin-bottom:1.5rem}
@@ -199,15 +188,15 @@ footer.site ul{list-style:none;padding:0;margin:0}
 footer.site li{margin:0 0 .4rem}
 footer.site .more{margin:0 0 1rem;line-height:1.9}
 footer.site .more a{margin-right:.9rem;white-space:nowrap}
+${NAV_CSS}
 ${COMPONENTS_CSS}`
 
-/* Fixed chrome strings (nav, footer headings, breadcrumb, byline, related
- * block) per page language. Page copy itself lives in the page objects. */
+/* Fixed chrome strings (footer headings, breadcrumb, byline, related block)
+ * per page language; the header's own strings live in seo/nav.js. Page copy
+ * itself lives in the page objects. */
 const I18N = {
   en: {
     home: 'Home',
-    nav: { clip: 'Clip generator', tools: 'Free tools', alternatives: 'Alternatives', mcp: 'MCP &amp; API' },
-    cta: 'Get free clips',
     related: 'Related pages',
     by: 'By the OpenShorts team',
     published: 'Published',
@@ -227,8 +216,6 @@ const I18N = {
   },
   es: {
     home: 'Inicio',
-    nav: { clip: 'Generador de clips', tools: 'Herramientas gratis', alternatives: 'Alternativas', mcp: 'MCP y API' },
-    cta: 'Clips gratis',
     related: 'Páginas relacionadas',
     by: 'Por el equipo de OpenShorts',
     published: 'Publicado',
@@ -352,20 +339,9 @@ const buildGraph = (page) => {
   return { '@context': 'https://schema.org', '@graph': graph }
 }
 
-/* The CTA goes to `/`: a new visitor lands on the landing page, whose hero is
- * the paste box, so there is no need to skip it with #app. */
-const nav = (t) => `
-<header class="site"><div class="wrap">
-  <a class="brand" href="${SITE.url}/"><img src="/logo-openshorts.png" alt="OpenShorts logo" width="26" height="26">OpenShorts</a>
-  <nav class="nav">
-    <a href="/free-ai-clip-generator">${t.nav.clip}</a>
-    <a href="/tools" class="keep">${t.nav.tools}</a>
-    <a href="${t === I18N.es ? '/alternativas' : '/alternatives'}">${t.nav.alternatives}</a>
-    <a href="/mcp">${t.nav.mcp}</a>
-    <a href="${SITE.repo}" rel="noopener">GitHub</a>
-  </nav>
-  <a class="cta" href="${SITE.url}/">${t.cta}</a>
-</div></header>`
+/* The header is the shared site navigation (seo/nav.js), the same items and
+ * targets as the homepage, translated by page language. */
+const nav = (page) => `${renderNav({ lang: page.lang === 'es' ? 'es' : 'en' })}\n${NAV_SCRIPT}`
 
 /* Footer link map. The money pages (the comparison hubs, the clip makers,
  * pricing) sit in the columns so every page on the site links to them; the
@@ -399,6 +375,7 @@ const FOOTER_COLUMNS = [
     ['/ai-reel-generator', 'AI reel generator'],
     ['/twitch-clip-maker', 'Twitch clip maker'],
     ['/kick-clip-maker', 'Kick clip maker'],
+    ['/sermon-clip-maker', 'Sermon clip maker'],
     ['/podcast-to-shorts', 'Podcast to Shorts'],
     ['/auto-reframe', 'Auto reframe'],
     ['/how-to-clip-a-youtube-video', 'How to clip a YouTube video'],
@@ -614,7 +591,7 @@ ${page.noindex ? '' : ATTRIBUTION}
 <script type="application/ld+json">${JSON.stringify(buildGraph(page))}</script>
 </head>
 <body>
-${nav(t)}
+${nav(page)}
 <main><div class="wrap">
 <div class="crumbs">${crumbs}</div>
 <h1>${esc(page.h1)}</h1>

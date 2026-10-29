@@ -19,6 +19,7 @@
  */
 
 import { EDITIONS, CANONICAL_ANSWERS } from './data.js'
+import { renderNav, NAV_CSS, NAV_SCRIPT } from './nav.js'
 
 const S = {
   wrap: 'max-width:72rem;margin:0 auto;padding:0 1.5rem',
@@ -131,6 +132,9 @@ const card = (title, body) =>
   `<div style="${S.card}"><h3 style="${S.h3}">${title}</h3><p style="margin:0;color:oklch(64% 0.012 262);font-size:.9rem;line-height:1.6">${body}</p></div>`
 
 export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(13% 0.014 265);color:oklch(86% 0.01 262);font-family:'Geist',ui-sans-serif,system-ui,sans-serif;line-height:1.65">
+<style>${NAV_CSS}</style>
+${renderNav()}
+${NAV_SCRIPT}
 
 <section style="${S.section};padding-top:4rem"><div style="${S.wrap}">
   <p style="${S.eyebrow}">Free AI clip generator &middot; open source</p>

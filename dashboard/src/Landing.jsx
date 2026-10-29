@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, Zap, Globe, FileVideo, Subtitles, Youtube, Instagram, Shield, Github, ArrowRight, Check, ChevronDown, Monitor, Cpu, Languages, Type, Upload, Scissors, Link2, Bot } from 'lucide-react';
 import PricingSection from './components/PricingSection';
+import SiteNav from './components/SiteNav';
 import { useAuth } from './contexts/AuthContext';
 import './landing.css';
 
@@ -442,42 +443,8 @@ export default function Landing({ onLaunchApp }) {
 
   return (
     <div className="min-h-screen bg-paper text-ink2 overflow-x-clip">
-      {/* Navigation — N9 edge-aligned minimal */}
-      <nav className="fixed top-0 w-full z-50 bg-paper border-b border-rule">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5 font-display text-xl lowercase text-ink tracking-tight">
-            <img src="/logo-openshorts.png" alt="OpenShorts logo" className="w-7 h-7" width="28" height="28" />
-            <span>openshorts</span>
-          </a>
-          <div className="hidden md:flex items-center gap-7 text-sm lowercase text-muted">
-            <a href="#features" className="hover:text-ink transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-ink transition-colors">How It Works</a>
-            {billingEnabled && <a href="#pricing" className="hover:text-ink transition-colors">Pricing</a>}
-            <a href="#comparison" className="hover:text-ink transition-colors">Comparison</a>
-            <a href="#faq" className="hover:text-ink transition-colors">FAQ</a>
-            <a href="/tools" className="hover:text-ink transition-colors">Free tools</a>
-          </div>
-          <div className="flex items-center gap-3">
-            {billingEnabled && (
-              <a href="#pricing" className="md:hidden text-sm lowercase text-muted hover:text-ink transition-colors">
-                Pricing
-              </a>
-            )}
-            <a
-              href="https://github.com/mutonby/openshorts"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-2 text-sm lowercase text-muted hover:text-ink transition-colors"
-            >
-              <Github size={16} />
-              <span>GitHub</span>
-            </a>
-            <button onClick={onLaunchApp} className="btn-primary px-5 py-2 whitespace-nowrap">
-              Launch App
-            </button>
-          </div>
-        </div>
-      </nav>
+      {/* Navigation: the shared site nav (seo/nav.js), same items as every page */}
+      <SiteNav className="fixed top-0 w-full z-50" />
 
       {/* Hero — Marquee Hero: blueprint grid, content left, apparatus right */}
       <section className="hero-blueprint relative overflow-clip border-b border-rule pt-32 pb-20 px-6">

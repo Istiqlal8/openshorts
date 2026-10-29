@@ -269,7 +269,7 @@ const pollJob = async (jobId) => {
 
 function App() {
   // Cloud auth/billing session (inert when billing is disabled).
-  const { billingEnabled, isManaged, isSignedIn, me, plan, refreshMe, jobRetentionSeconds, localLlm } = useAuth();
+  const { billingEnabled, isManaged, isSignedIn, me, plan, refreshMe, jobRetentionSeconds, localLlm, loading: authLoading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [showTopUp, setShowTopUp] = useState(false);
   // Free plan: "want the watermark off?" once per job, when the clips land.
@@ -969,6 +969,26 @@ function App() {
     return () => window.removeEventListener('hashchange', apply);
   }, []);
 
+  // #app?login=1: the "Log in" link of the site nav (seo/nav.js). Opens the
+  // sign-in dialog once the session is known (already signed in: just the
+  // app), then drops the query so a reload does not reopen it.
+  const wantsLogin = () => {
+    const hash = window.location.hash || '';
+    return hash.startsWith('#app?') && new URLSearchParams(hash.slice(5)).get('login') === '1';
+  };
+  const [loginRequested, setLoginRequested] = useState(wantsLogin);
+  useEffect(() => {
+    const onHash = () => { if (wantsLogin()) setLoginRequested(true); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    if (!loginRequested || authLoading) return;
+    setLoginRequested(false);
+    if (billingEnabled && !isSignedIn) setShowLogin(true);
+    try { window.history.replaceState(null, '', '#app'); } catch (_) { /* ignore */ }
+  }, [loginRequested, authLoading, billingEnabled, isSignedIn]);
+
   useEffect(() => {
     if (tutorialPhase === 'coach' && status === 'complete' && (results?.clips?.length > 0)) {
       setTutorialPhase('celebrate');
@@ -1329,7 +1349,7 @@ function App() {
   // entirely — an unlabelled 80px rail ate a fifth of a phone screen.
   const Sidebar = () => (
     <div className="hidden md:flex w-20 lg:w-64 bg-paper2 border-r border-rule flex-col h-full shrink-0 transition-all duration-300">
-      <a href="#landing" className="p-6 flex items-center gap-3" title="go to landing page">
+      <a href="#app" onClick={() => goToTab('dashboard')} className="p-6 flex items-center gap-3" title="openshorts home">
         <div className="w-8 h-8 bg-paper3 rounded-input flex items-center justify-center shrink-0 overflow-hidden border border-rule">
           <img src="/logo-openshorts.png" alt="Logo" className="w-full h-full object-cover" />
         </div>
@@ -1385,7 +1405,7 @@ function App() {
       />
       <div className="relative w-[17rem] max-w-[82vw] h-full bg-paper2 border-r border-rule flex flex-col animate-slide-in-left">
         <div className="flex items-center justify-between px-5 h-14 border-b border-rule shrink-0">
-          <a href="#landing" className="flex items-center gap-2.5" onClick={() => setNavOpen(false)}>
+          <a href="#app" className="flex items-center gap-2.5" onClick={() => goToTab('dashboard')}>
             <div className="w-7 h-7 bg-paper3 rounded-input overflow-hidden border border-rule shrink-0">
               <img src="/logo-openshorts.png" alt="" className="w-full h-full object-cover" />
             </div>

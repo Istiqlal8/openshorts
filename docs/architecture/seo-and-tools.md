@@ -29,6 +29,23 @@ The public `/gta-5-clips` page states the silent-footage thresholds and ceiling
 (see `clip-selection.md`); if that behaviour changes, change
 `dashboard/seo/pages.js` too.
 
+## Site navigation (`seo/nav.js`)
+
+One header for the whole site: `seo/nav.js` holds the groups (clip tools,
+compare, free tools), the top links (pricing, open source, GitHub), "Log in"
+(`/#app?login=1`, App.jsx opens the sign-in dialog) and the CTA (`/#app`). The
+same `renderNav()` markup is used by `render.js` (every static page, labels
+translated for `lang: 'es'`), by the homepage fallback and by the React landing
+(`src/components/SiteNav.jsx`, which only swaps the CTA to "Open app" for a
+stored session). Every item is a real `<a href>` in the static HTML; dropdowns
+are `<details>` and the mobile menu a checkbox, so nothing needs JavaScript.
+Add or rename a nav item there, never in one surface.
+
+Routing: `/` always renders the landing; the app is `#app` / `#app?…`. Do not
+reintroduce a "returning visitor goes straight to the app" shortcut: the static
+fallback is the landing, so swapping it for the app after hydration makes `/`
+jump, and every logo on the site must reach the landing.
+
 ## Free tools (`/tools`, `free_tools.py`)
 
 - The router is always mounted. `GET /api/tools/youtube-transcript` reads the
