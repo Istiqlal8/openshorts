@@ -675,6 +675,216 @@ export const COMPETITORS = {
       'Usage cap': 'Metered in shorts per month',
     },
   },
+  // "choppity", "choppity pricing", "is choppity free": a brand search, so the
+  // page is a review first (review: true), like Klap. Read on choppity.com.
+  choppity: {
+    facts: [
+      { k: 'Free plan', v: '1 hour/mo', s: 'Logo on exports, projects kept 3 days' },
+      { k: 'Paid from', v: '$24/mo', s: 'Starter, 3 hours; $16.80 billed yearly' },
+      { k: 'Billed by', v: 'Hours analysed', s: 'Of source video, reset on the 1st' },
+      { k: 'Open source', v: 'No', s: 'Cloud only. OpenShorts: MIT, self-hostable' },
+    ],
+    pick: {
+      them: ['You want to fine-tune every clip by editing its transcript', 'You also record screen tutorials and schedule posts to six networks', 'One hour of source a month is all you clip'],
+      us: ['You want to self-host so the footage never leaves your machine', 'You clip under 100 minutes a month and want a $12 plan billed monthly', 'You want dubbing into 30+ languages with your own ElevenLabs key'],
+    },
+    edge: 'Choppity has the deeper editor: transcript editing, profanity bleeping and a screen recorder.',
+    name: 'Choppity',
+    checked: '2026-10-29',
+    published: '2026-10-29',
+    entryPrice: '$24/month ($16.80 billed yearly)',
+    seo: {
+      title: 'Choppity Review 2026: Pricing, Free Plan & Alternative',
+      description:
+        'Choppity review, October 2026: a free hour a month with a logo, Starter at $24/month ($16.80 yearly) for 3 hours, the limits, and an open source alternative.',
+      h1: 'Choppity review: pricing, the free plan, and the open source alternative',
+      breadcrumb: 'Choppity',
+    },
+    review: true,
+    brandBlurb:
+      'Choppity (choppity.com) is a cloud AI clipper aimed mostly at podcasters, educators and marketers. Upload a file or paste a YouTube link and it transcribes the video, proposes 20 to 50 or more short clips, reframes them to vertical while following the active speaker, and captions them; you then refine each clip by editing its transcript. Around the clipper it sells a screen recorder for tutorials and a social scheduler, and it exports 9:16, 1:1 and 16:9.',
+    isFree:
+      'Yes, with limits. The free plan needs no credit card and includes the clipper, the editor and captions, but it covers 1 hour of AI video analysis a month, deletes projects after 3 days and puts a small Choppity logo in the corner of every export. Removing the logo starts on Starter at $24/month, or $16.80/month billed yearly.',
+    tiers: [
+      ['Free', '1 hour of AI video analysis a month, 2 GB of storage, projects kept 3 days, one seat, with the clipper, editor and captions; exports carry a small Choppity logo. No credit card.'],
+      ['Starter', '$24/month, or $16.80/month billed yearly ($201.60/year): 3 hours of analysis a month, 40 GB, projects kept 30 days, 1080p and 4K exports, scheduling to 1 social account'],
+      ['Creator', '$32/month, or $22.40/month billed yearly: 5 hours a month, 100 GB, projects kept with no expiry, bulk uploads of up to 10 links or files, 3 social accounts, custom fonts, a brand template and API access. More hours come in 5-hour packs at $32 each, up to 100 hours.'],
+      ['Team', '$48/month, or $33.60/month billed yearly: 5 hours a month, 200 GB, unlimited seats, a shared workspace with roles, 6 social accounts, 5 brand templates'],
+      ['Enterprise', 'Custom pricing for bespoke usage, security review and white-label'],
+    ],
+    tierNote:
+      'Yearly billing takes 30% off every plan. Usage resets to zero on the 1st of each calendar month, and a payment can be refunded if you ask within 14 days.',
+    gotcha:
+      'The meter is hours of AI video analysis, counted on the source you upload rather than on the clips you keep: a 90-minute episode uses half of Starter\'s three hours however few clips you export. Usage resets on the 1st of the calendar month, so hours you do not use are gone.',
+    strengths: [
+      'Text-based editing: trim a clip by deleting words from its transcript, with timeline controls when you need them',
+      'Active-speaker tracking for podcasts and interviews, keyword and topic search to clip one specific moment, and automatic profanity bleeping',
+      'A screen recorder and a social scheduler (YouTube, TikTok, Instagram, LinkedIn, Facebook, Threads) in the same account, plus an API and an MCP server',
+      'Captions and transcripts in 97 languages, it says, and uploads of up to 10 GB',
+    ],
+    whereWeDiffer: [
+      'OpenShorts is MIT-licensed and runs on your own machine with Docker; Choppity is a closed cloud service, so every upload goes to its servers.',
+      'Entry prices: OpenShorts Cloud is $12/month for 100 minutes, billed monthly; Choppity Starter is $24/month for 3 hours, or $16.80 on a yearly plan.',
+      'Choppity\'s free plan is the more generous hosted one: a full hour a month, against 20 minutes on OpenShorts Cloud after a first video of up to 60 minutes. Both mark free exports.',
+      'Choppity has the richer editor (transcript editing, profanity bleeping, a screen recorder). OpenShorts is built to finish clips without one, and adds dubbing into 30+ languages with your own ElevenLabs key.',
+    ],
+    fit:
+      'Choppity and OpenShorts both start from a long recording and return captioned vertical clips. Choppity expects you to polish each clip in its transcript editor; OpenShorts is built to hand back finished clips and to run without you, on our servers or on yours.',
+    watermark:
+      'Choppity puts a small logo in the corner of free-plan exports; any paid plan, from $24/month ($16.80 yearly), removes it, and old clips can be re-exported clean.',
+    // Review pages normally reuse `stay` as "who it is for"; Choppity gets both.
+    forWhom: [
+      'Podcasters and interview shows that want speaker tracking and to fine-tune each clip by editing words rather than a timeline',
+      'Course creators who also record screen tutorials and want one tool for the recording and the clips',
+      'Small teams that want clipping, a content calendar and posting to six networks under one subscription',
+    ],
+    stay: [
+      'One hour of source a month is all you clip and a corner logo does not bother you: the free plan covers it.',
+      'You publish to LinkedIn, Facebook or Threads as well, and want the scheduler next to the clipper.',
+      'You pay yearly for Creator: $22.40/month for 5 hours is less per minute than OpenShorts Cloud\'s Creator plan at $24.17/month yearly for 300 minutes.',
+    ],
+    migrate: [
+      'Download the clips you want to keep first: free projects are deleted after 3 days and Starter projects after 30.',
+      'Use up the month\'s hours, then switch: usage resets on the 1st of each calendar month, and refunds are only offered within 14 days of a payment.',
+      'Convert the meter. Choppity sells hours of analysis, OpenShorts Cloud sells minutes of source: Starter\'s 3 hours is 180 minutes, between our $12 (100 minutes) and $29 (300 minutes) plans.',
+      'Re-run a recent episode from the same YouTube link or file; the first video is clipped free up to 60 minutes, so the side-by-side costs nothing.',
+      'If a script called Choppity\'s API or MCP server, point it at the OpenShorts API or MCP server instead.',
+    ],
+    bestFor:
+      'Choppity is the better pick if you want to shape every clip by hand in a transcript editor, also record tutorials, and schedule to many networks from one tool. OpenShorts is the better pick if you want the clips finished without the editing pass, to pay monthly from $12, or to keep the whole pipeline on your own machine.',
+    tldr: [
+      'Choppity is a closed-source cloud clipper for podcasts and long talking videos: it proposes clips, follows the active speaker and lets you edit each clip through its transcript. A screen recorder and a social scheduler come in the same account.',
+      'It has a real free plan: 1 hour of analysis a month and no credit card, with a Choppity logo on exports and projects deleted after 3 days. Paid plans start at $24/month for 3 hours, or $16.80/month billed yearly.',
+      'OpenShorts is the open source alternative: free under MIT when you self-host it, with no logo and no meter, or hosted from $12/month billed monthly.',
+    ],
+    extraFaq: [
+      {
+        q: 'How much does Choppity cost?',
+        a: 'Checked 29 October 2026: Free at $0 (1 hour of analysis a month), Starter $24/month for 3 hours, Creator $32/month for 5 hours with API access, Team $48/month for 5 hours with unlimited seats, and custom Enterprise plans. Yearly billing takes 30% off: $16.80, $22.40 and $33.60 a month. OpenShorts Cloud starts at $12/month for 100 minutes, and self-hosted it costs nothing.',
+      },
+      {
+        q: 'Does Choppity have an API?',
+        a: 'Yes. API access starts on the Creator plan ($32/month, $22.40 billed yearly), and Choppity also offers an MCP server for AI assistants. OpenShorts has a REST API, webhooks and an MCP server, and the self-hosted edition includes all three for free.',
+      },
+    ],
+    sources: [
+      ['Choppity plans, limits, billing and refunds', 'https://www.choppity.com/pricing/'],
+      ['Choppity on free-plan watermarks', 'https://www.choppity.com/tools/free-ai-clip-maker/ai-clip-maker-no-watermark/'],
+      ['Choppity features and FAQ', 'https://www.choppity.com/'],
+      ['Choppity languages and upload size', 'https://www.choppity.com/alternatives/opus-clip/'],
+    ],
+    rows: {
+      'AI voice dubbing, 30+ languages': 'Not listed; captions in 97 languages, it says',
+      'AI UGC video with lip-synced actors': 'Not listed',
+      'Free AI YouTube thumbnail & title studio': 'Not listed',
+      'Usage cap': 'Metered in hours of AI analysis a month',
+    },
+  },
+  // "getmunch" and "getmunch alternative". getmunch.com now 301s to
+  // munchstudio.com, an AI social-media service; the page says so first.
+  getmunch: {
+    facts: [
+      { k: 'Now called', v: 'Munch Studio', s: 'getmunch.com redirects to munchstudio.com' },
+      { k: 'Free plan', v: 'None', s: '7-day trial, then the plan bills' },
+      { k: 'Paid from', v: '$38/mo', s: 'Billed yearly; $68 month to month' },
+      { k: 'Open source', v: 'No', s: 'Cloud only. OpenShorts: MIT, self-hostable' },
+    ],
+    pick: {
+      them: ['You want an AI to plan, write and post all of your social content, not only clips', 'You post images, carousels and generated videos too', 'You run several brands and want one workspace per client'],
+      us: ['Clipping your own long videos is the whole job', 'You want a free plan, or to pay from $12/month rather than $38', 'You want the pipeline on your own machine, under MIT'],
+    },
+    edge: 'Munch Studio plans, writes and schedules a whole social calendar, which OpenShorts does not.',
+    name: 'Munch Studio',
+    checked: '2026-10-29',
+    published: '2026-10-29',
+    entryPrice: '$38/month billed yearly ($68 monthly)',
+    seo: {
+      title: 'GetMunch Review 2026: Now Munch Studio, Price & Alternative',
+      description:
+        'GetMunch is now Munch Studio, an AI social media service. October 2026: no free plan, a 7-day trial, from $38/month yearly, and a clipping alternative.',
+      h1: 'GetMunch is now Munch Studio: what changed, what it costs, and a GetMunch alternative',
+      breadcrumb: 'GetMunch (Munch Studio)',
+    },
+    review: true,
+    brandBlurb:
+      'Searches for getmunch land on munchstudio.com: the old getmunch.com address now redirects there. Munch Studio is sold as "the AI that does your social media marketing for you". It reads your website, videos and brand material, builds a content strategy, then generates posts, posters, carousels, video scripts and short videos and publishes them to Instagram, Facebook, LinkedIn, YouTube and TikTok, with a performance dashboard. Cutting long videos into clips is still there, as a monthly allowance of "video repurposing" minutes, and its help centre still documents clips tailored per platform with AI subtitles.',
+    isFree:
+      'No. There is no free plan, only a 7-day free trial, and its help centre says the trial turns into a paid subscription on the plan you picked unless you cancel before it ends. A monthly payment can be refunded within 7 days, and a yearly one within 14, only if you have not used the platform.',
+    tiers: [
+      ['Free', 'No free plan. A 7-day free trial that converts to the paid plan you chose unless you cancel before it ends.'],
+      ['Essential', '$68/month, or $38/month billed yearly ($456/year): one brand, one user, 500 minutes of video repurposing a month, 10 generated videos, 5 video scripts a week, 100 GB'],
+      ['Premium', '$85/month, or $60/month billed yearly ($720/year): one brand, unlimited team members, 1,000 minutes of video repurposing, 30 generated videos, unlimited scripts, 1 TB'],
+      ['Studio', '$148/month: up to 5 brands, 2,500 minutes of video repurposing, 50 generated videos, 400 GB'],
+      ['Scale', '$398/month: up to 15 brands, 7,500 minutes of video repurposing, 150 generated videos, 1 TB'],
+    ],
+    tierNote:
+      'Every plan includes posting to Instagram, Facebook, LinkedIn, YouTube and TikTok, unlimited generated posters and carousels, a content planner and a performance dashboard. Studio and Scale are the multi-brand plans, quoted at the monthly prices in its plan comparison.',
+    gotcha:
+      'You cannot buy the clipping on its own. The cheapest way to get it is Essential, $38/month on a yearly commitment or $68 month to month, and that price also pays for post generation, scripts, generated videos and scheduling: if all you want is long videos cut into clips, most of the subscription goes to features you will not use. The help centre lists seven supported languages: English (US and UK), German, Spanish, Italian, Portuguese and Russian.',
+    strengths: [
+      'Done-for-you social media: it learns the brand from your website and material, writes a content strategy and fills the calendar',
+      'Clips, posters, carousels, scripts and generated videos in one queue, approved and posted with one click to five networks',
+      'Multi-brand plans with a separate workspace, strategy and calendar per client, aimed at agencies',
+    ],
+    whereWeDiffer: [
+      'OpenShorts does one job, clipping long videos into vertical shorts, and costs $0 self-hosted or from $12/month hosted. Munch Studio sells a full social media service from $38/month on yearly billing.',
+      'OpenShorts has a free plan you can keep using; Munch Studio has a 7-day trial that becomes a subscription.',
+      'OpenShorts is MIT-licensed and can run on your own machine; Munch Studio is closed and cloud only.',
+      'Munch Studio writes and schedules posts that are not videos, and plans the calendar for you. OpenShorts does not, and is not trying to.',
+    ],
+    fit:
+      'If what you wanted from Munch was the clipping, OpenShorts does that part and nothing around it: give it a long video, get vertical clips with captions, post them to TikTok, Instagram or YouTube. If you want an AI running the whole social calendar, Munch Studio is a different product and OpenShorts does not replace it.',
+    forWhom: [
+      'Small businesses that want social media handled without writing or designing posts themselves',
+      'Agencies running social for several clients, with one isolated workspace per brand',
+      'Teams that want posts, carousels, scripts and clips planned and published from one calendar',
+    ],
+    stay: [
+      'You use the strategy, posts and carousels as much as the clips, so you are paying for the whole service rather than for clipping alone.',
+      'You manage several brands and the per-client workspaces on Studio or Scale save you a tool.',
+      'You post to LinkedIn and Facebook as well as the short-video networks, from one approval queue.',
+    ],
+    migrate: [
+      'Download the clips and posts you want to keep before the billing period ends: cancelling stops future charges and access lasts until then.',
+      'If you are still inside the 7-day trial, cancel before it ends and nothing is charged.',
+      'Count the repurposing minutes you actually use. A weekly one-hour show is about 260 minutes a month, which fits OpenShorts Cloud\'s $29 plan (300 minutes); Essential\'s full 500 fits the $59 plan (750).',
+      'Run the same long video through OpenShorts; the first one is clipped free up to 60 minutes.',
+      'Keep a scheduler for image posts and carousels if you relied on Munch Studio for those: OpenShorts posts only the clips, to TikTok, Instagram and YouTube.',
+    ],
+    bestFor:
+      'Munch Studio is the better pick if you want an AI to run your social media end to end and clips are one ingredient. OpenShorts is the better pick if you searched for getmunch because you want a clipper: it does that job alone, with a free plan, monthly billing from $12, or $0 on your own machine.',
+    tldr: [
+      'GetMunch is now Munch Studio: getmunch.com redirects to munchstudio.com, which sells an AI that runs your social media marketing. Clipping long videos is still there, as an allowance of "video repurposing" minutes inside each plan.',
+      'There is no free plan, only a 7-day trial that turns into a subscription. Plans start at $38/month billed yearly, or $68 month to month, for 500 minutes of video repurposing plus posts, scripts and generated videos.',
+      'If you came for the clipper, OpenShorts is the open source GetMunch alternative: free under MIT on your own machine, or hosted from $12/month with a free plan you can keep.',
+    ],
+    extraFaq: [
+      {
+        q: 'What happened to GetMunch?',
+        a: 'getmunch.com now redirects to munchstudio.com. The product is sold as Munch Studio, an AI social media marketing service, and clipping long videos continues inside it as minutes of "video repurposing" per plan. Checked 29 October 2026.',
+      },
+      {
+        q: 'How much does Munch Studio cost?',
+        a: 'Checked 29 October 2026: Essential $68/month or $38/month billed yearly (500 minutes of video repurposing), Premium $85/month or $60/month billed yearly (1,000 minutes), and the multi-brand Studio ($148/month) and Scale ($398/month) plans. There is a 7-day trial and no free plan. OpenShorts Cloud starts at $12/month for 100 minutes, and self-hosted it costs nothing.',
+      },
+    ],
+    sources: [
+      ['Munch Studio plans and plan comparison', 'https://www.munchstudio.com/pricing'],
+      ['Munch Studio home page (getmunch.com redirects here)', 'https://www.munchstudio.com/'],
+      ['Free trial and billing during the trial', 'https://help.munchstudio.com/en/articles/13114429-free-trial-demo-billing-during-trial'],
+      ['Cancellations and refunds', 'https://help.munchstudio.com/en/articles/13114532-cancelations-and-refunds'],
+      ['Supported languages', 'https://help.munchstudio.com/en/articles/11801418-supported-languages-in-munch-studio'],
+      ['What Munch does with your videos', 'https://help.munchstudio.com/en/articles/8163720-what-does-munch-do-with-my-videos'],
+    ],
+    rows: {
+      'Face-tracked 9:16 reframing': 'Vertical clips per platform, with a manual crop',
+      'Word-level auto subtitles': 'AI-generated subtitles with templates',
+      'AI voice dubbing, 30+ languages': 'Not listed; 7 supported languages',
+      'AI UGC video with lip-synced actors': 'Generated videos, 10 to 150 a month; lip-sync not stated',
+      'Free AI YouTube thumbnail & title studio': 'Not listed',
+      'Usage cap': 'Metered in minutes of video repurposing a month',
+    },
+  },
 }
 
 /* Rows for the head-to-head table. `os` values are deliberately honest about the
@@ -781,6 +991,23 @@ export const PRICE_MODELS = {
       { name: 'Lite', monthly: { minutes: 300, price: 9.9 } },
       { name: 'Pro', monthly: { minutes: 900, price: 19.9 } },
       { name: 'Premium', monthly: { minutes: 3000, price: 49.9 } },
+    ],
+  },
+  // Hours of AI analysis of the uploaded source; Creator scales in 5-hour packs
+  // at $32 each (30% off yearly). Munch Studio is left out: its minutes come
+  // bundled with posts and generated videos, so a per-minute bar would mislead.
+  choppity: {
+    name: 'Choppity',
+    unit: 'hours of AI analysis per month',
+    checked: '2026-10-29',
+    plans: [
+      { name: 'Free', watermark: true, monthly: { minutes: 60, price: 0 } },
+      { name: 'Starter', monthly: { minutes: 180, price: 24 }, yearly: { minutes: 180, price: 16.8 } },
+      { name: 'Creator', monthly: { minutes: 300, price: 32 }, yearly: { minutes: 300, price: 22.4 } },
+      { name: 'Creator, 10 h', monthly: { minutes: 600, price: 64 }, yearly: { minutes: 600, price: 44.8 } },
+      { name: 'Creator, 15 h', monthly: { minutes: 900, price: 96 }, yearly: { minutes: 900, price: 67.2 } },
+      { name: 'Creator, 20 h', monthly: { minutes: 1200, price: 128 }, yearly: { minutes: 1200, price: 89.6 } },
+      { name: 'Creator, 25 h', monthly: { minutes: 1500, price: 160 }, yearly: { minutes: 1500, price: 112 } },
     ],
   },
 }
