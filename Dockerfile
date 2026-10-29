@@ -89,6 +89,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 # Helper token provider, baked in as a local Node script (no separate service).
+# Its `canvas` dependency downloads a prebuilt binary from GitHub Releases and
+# falls back to compiling when that times out (slow egress to GitHub on our
+# mini server), so keep the native toolchain available for the fallback.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential pkg-config libcairo2-dev libpango1.0-dev libjpeg-dev \
+      libgif-dev librsvg2-dev libpixman-1-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN git clone --depth 1 https://github.com/Brainicism/bgutil-ytdlp-pot-provider /opt/bgutil-provider \
     && cd /opt/bgutil-provider/server \
     && npm install --no-audit --no-fund \
