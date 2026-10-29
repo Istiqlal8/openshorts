@@ -1,12 +1,15 @@
 """Free public tools behind the static SEO pages (/tools on openshorts.app).
 
-Two endpoints, both anonymous, both deliberately cheap:
+Three endpoints, all anonymous, all deliberately cheap:
 
 * ``GET /api/tools/youtube-transcript`` reads the captions a video **already
   has** on YouTube (manual subtitles first, then YouTube's own automatic
   track). It never downloads media and never touches the GPU: no Parakeet, no
   render. A video without captions gets an honest "no captions" answer and the
   page points at the clip generator, which does transcribe.
+* ``GET /api/tools/tiktok-transcript`` does the same for a TikTok video: the
+  WebVTT captions TikTok's own player shows, read through yt-dlp inside
+  ``ssrf_guard.guarded()`` (a share link redirects), direct then statics.
 * ``POST /api/tools/youtube-metadata`` writes titles, a description or tags
   for a video from a short brief, with one Gemini text call.
 
@@ -49,6 +52,7 @@ router = APIRouter()
 # (window seconds, max hits) per IP, plus one global cap per UTC day.
 LIMITS = {
     "transcript": {"per_ip": [(600, 10), (86400, 60)], "global_day": 1500},
+    "tiktok_transcript": {"per_ip": [(600, 10), (86400, 60)], "global_day": 1500},
     "metadata": {"per_ip": [(600, 12), (86400, 50)], "global_day": 2000},
 }
 
@@ -461,6 +465,266 @@ async def youtube_transcript(request: Request, url: str = "", lang: str = ""):
     if not lang:
         req = result["language"] + ("-orig" if result["kind"] == "auto" else "")
         _cache_put((video_id, req), result)
+    return {**result, "cached": False}
+
+
+# --------------------------------------------------------------------------- #
+# TikTok transcript
+# --------------------------------------------------------------------------- #
+# TikTok's web player ships the captions it shows (its own speech recognition,
+# or the creator's edited version) as WebVTT next to the video; yt-dlp lists
+# them under ``subtitles`` once subtitle extraction is switched on. Same
+# promise as the YouTube tool: read what is already there, never media, never
+# the GPU, never the per-GB PROXY_URL. TikTok does not bot-check a plain
+# request the way YouTube does, so the route order is the download's own:
+# direct first, then up to two statics.
+
+_TIKTOK_ID = re.compile(r"^\d{15,22}$")
+_TIKTOK_SHORT = re.compile(r"^[A-Za-z0-9]{5,20}$")
+# Only TikTok's own extractors may run: a short link that redirects anywhere
+# else fails as "no suitable extractor" instead of reaching the generic one.
+_TIKTOK_EXTRACTORS = ["TikTok", "vm.tiktok"]
+
+
+def extract_tiktok_target(raw: str):
+    """``(cache_key, url)`` for one TikTok video, or None.
+
+    The URL handed to yt-dlp is rebuilt from the numeric id (the username is
+    not needed and is dropped) or, for a share link from the app, from the
+    short code on TikTok's own short-link host.
+    """
+    s = (raw or "").strip()
+    if _TIKTOK_ID.match(s):
+        return s, f"https://www.tiktok.com/@_/video/{s}"
+    if not re.match(r"^https?://", s, re.I):
+        s = "https://" + s
+    try:
+        u = urlparse(s)
+    except ValueError:
+        return None
+    host = (u.hostname or "").lower()
+    parts = [p for p in u.path.split("/") if p]
+    if host in ("vm.tiktok.com", "vt.tiktok.com"):
+        if len(parts) == 1 and _TIKTOK_SHORT.match(parts[0]):
+            return f"{host[:2]}:{parts[0]}", f"https://{host}/{parts[0]}/"
+        return None
+    if host not in ("tiktok.com", "www.tiktok.com", "m.tiktok.com"):
+        return None
+    if len(parts) == 2 and parts[0] == "t" and _TIKTOK_SHORT.match(parts[1]):
+        return f"t:{parts[1]}", f"https://www.tiktok.com/t/{parts[1]}"
+    cand = None
+    if len(parts) >= 3 and parts[0].startswith("@") and parts[1] == "video":
+        cand = parts[2]
+    elif len(parts) >= 3 and parts[0] == "embed" and parts[1] == "v2":
+        cand = parts[2]
+    elif len(parts) == 2 and parts[0] == "embed":
+        cand = parts[1]
+    elif len(parts) == 2 and parts[0] == "v" and parts[1].endswith(".html"):
+        cand = parts[1][:-5]
+    if cand and _TIKTOK_ID.match(cand):
+        return cand, f"https://www.tiktok.com/@_/video/{cand}"
+    return None
+
+
+_CUE_TIME = re.compile(
+    r"(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})")
+
+
+def _secs(h, m, s, ms):
+    return int(h or 0) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000.0
+
+
+def parse_timed_text(data) -> list:
+    """WebVTT or SRT -> [{start, dur, text}] in seconds, the shape
+    ``parse_json3`` returns. Cue ids, NOTE/STYLE blocks and tags are dropped."""
+    if isinstance(data, bytes):
+        data = data.decode("utf-8", "replace")
+    out = []
+    for block in re.split(r"\r?\n\s*\r?\n", (data or "").replace("﻿", "")):
+        lines = [ln.strip() for ln in block.strip().splitlines()]
+        for i, line in enumerate(lines):
+            m = _CUE_TIME.search(line)
+            if not m:
+                continue
+            start = _secs(*m.group(1, 2, 3, 4))
+            end = _secs(*m.group(5, 6, 7, 8))
+            text = " ".join(lines[i + 1:])
+            text = re.sub(r"<[^>]+>", "", text)
+            text = re.sub(r"\s+", " ", text).strip()
+            if text:
+                out.append({"start": round(start, 3), "dur": round(max(0.0, end - start), 3),
+                            "text": text})
+            break
+    out.sort(key=lambda c: c["start"])
+    for a, b in zip(out, out[1:]):
+        if a["start"] + a["dur"] > b["start"]:
+            a["dur"] = round(max(0.0, b["start"] - a["start"]), 3)
+    return out
+
+
+def _tiktok_lang_name(code: str) -> str:
+    base = _base_lang(code)
+    names = {"en": "English", "es": "Spanish", "pt": "Portuguese", "fr": "French",
+             "de": "German", "it": "Italian", "id": "Indonesian", "ja": "Japanese",
+             "ko": "Korean", "vi": "Vietnamese", "th": "Thai", "tr": "Turkish",
+             "ru": "Russian", "ar": "Arabic", "nl": "Dutch", "pl": "Polish",
+             "eng": "English", "spa": "Spanish", "por": "Portuguese", "fra": "French",
+             "deu": "German", "ita": "Italian", "ind": "Indonesian", "jpn": "Japanese",
+             "kor": "Korean", "vie": "Vietnamese", "tha": "Thai", "tur": "Turkish",
+             "rus": "Russian", "ara": "Arabic", "nld": "Dutch", "pol": "Polish",
+             "cmn": "Chinese", "zho": "Chinese", "hin": "Hindi"}
+    name = names.get(base)
+    return f"{name} ({code})" if name else code
+
+
+def choose_tiktok_track(info: dict, lang: Optional[str] = None):
+    """``(key, fmt, languages)`` for the TikTok caption track to return.
+
+    TikTok lists the spoken language first; a requested language wins when it
+    is there. Only WebVTT / SRT are readable (the json "creator_caption"
+    variant is skipped). ``(None, None, [])`` when there are none.
+    """
+    readable = {}
+    for k, fmts in (info.get("subtitles") or {}).items():
+        for f in fmts or []:
+            if f.get("ext") in ("vtt", "srt") and (f.get("url") or f.get("data")):
+                readable.setdefault(k, f)
+    languages = [{"code": k, "kind": "tiktok", "request": k, "name": _tiktok_lang_name(k)}
+                 for k in readable]
+    if not readable:
+        return None, None, languages
+    key = lang if lang in readable else next(iter(readable))
+    return key, readable[key], languages
+
+
+_TT_UNAVAILABLE = re.compile(
+    r"private|not available|unavailable|removed|deleted|log in for access|"
+    r"no suitable extractor|unsupported url|status code 10\d{3}|does not exist", re.I)
+_TT_RETRY = re.compile(r"ip address is blocked|429|too many requests|403|timed out|"
+                       r"proxy|connection|unable to download|unable to extract", re.I)
+
+
+def tiktok_routes():
+    """Direct, then up to two statics. Never the per-GB PROXY_URL."""
+    statics = [p.strip() for p in os.environ.get("STATIC_PROXY_URLS", "").split(",")
+               if p.strip()]
+    if statics:
+        k = random.randrange(len(statics))
+        statics = statics[k:] + statics[:k]
+    return [None] + statics[:2]
+
+
+def fetch_tiktok_transcript(target_url: str, lang: Optional[str] = None) -> dict:
+    """Blocking: read the captions TikTok already shows for one video.
+    Raises TranscriptError with a user-facing message."""
+    import yt_dlp
+    import ssrf_guard
+
+    errors = []
+    for proxy in tiktok_routes():
+        opts = {"skip_download": True, "quiet": True, "no_warnings": True,
+                "noplaylist": True, "logger": _QuietLogger(), "socket_timeout": 15,
+                "ignore_no_formats_error": True,
+                # yt-dlp only fills ``subtitles`` for TikTok when asked to.
+                # extract_info(download=False) writes nothing to disk.
+                "writesubtitles": True,
+                "allowed_extractors": _TIKTOK_EXTRACTORS}
+        if proxy:
+            opts["proxy"] = proxy
+        try:
+            # A short link redirects, and caption URLs come out of TikTok's
+            # page: every connection is checked at resolve time.
+            with ssrf_guard.guarded(), yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(target_url, download=False)
+                if info.get("_type") == "playlist" or not _TIKTOK_ID.match(str(info.get("id") or "")):
+                    raise TranscriptError(
+                        "bad_url", "That link is not a single TikTok video.", 400)
+                key, fmt, languages = choose_tiktok_track(info, lang)
+                video_id = str(info["id"])
+                handle = info.get("uploader") or ""
+                meta = {
+                    "platform": "tiktok",
+                    "video_id": video_id,
+                    "page_url": (f"https://www.tiktok.com/@{handle}/video/{video_id}"
+                                 if re.match(r"^[\w.-]+$", handle)
+                                 else f"https://www.tiktok.com/@_/video/{video_id}"),
+                    "title": (info.get("title") or info.get("description") or "")[:300],
+                    "channel": info.get("channel") or handle,
+                    "duration": info.get("duration") or 0,
+                    "languages": languages,
+                }
+                if not key:
+                    raise TranscriptError(
+                        "no_captions",
+                        "TikTok shows no captions for this video. The creator may have turned "
+                        "auto captions off, or the video has no speech.",
+                        404)
+                raw = fmt.get("data") or ydl.urlopen(fmt["url"]).read()
+            segments = parse_timed_text(raw)
+            if not segments:
+                raise TranscriptError(
+                    "no_captions", "The caption track for this TikTok is empty.", 404)
+            return {**meta, "language": key, "kind": "tiktok", "segments": segments}
+        except TranscriptError:
+            raise
+        except Exception as e:  # noqa: BLE001 — classified below
+            msg = str(e)
+            errors.append(msg[:300])
+            if _TT_RETRY.search(msg):
+                continue
+            if _TT_UNAVAILABLE.search(msg):
+                raise TranscriptError(
+                    "unavailable",
+                    "TikTok says this video is private, removed or not available, or the "
+                    "short link has expired, so its captions cannot be read.", 422)
+    raise TranscriptError(
+        "tiktok_blocked",
+        "TikTok is not showing this video to our servers right now. Try again in a minute, "
+        "or open it in the TikTok app and use its captions.", 503)
+
+
+_tt_slots = threading.BoundedSemaphore(int(os.environ.get("FREE_TOOLS_TT_CONCURRENCY", "3")))
+
+
+def _fetch_tiktok_with_slot(target_url, lang):
+    if not _tt_slots.acquire(timeout=20):
+        raise TranscriptError("busy", "The transcript tool is busy. Try again in a few seconds.", 503)
+    try:
+        return fetch_tiktok_transcript(target_url, lang)
+    finally:
+        _tt_slots.release()
+
+
+@router.get("/api/tools/tiktok-transcript")
+async def tiktok_transcript(request: Request, url: str = "", lang: str = ""):
+    target = extract_tiktok_target(url)
+    if not target:
+        raise HTTPException(status_code=400, detail={
+            "code": "bad_url",
+            "message": "Paste the link of one TikTok video (tiktok.com/@user/video/... or a "
+                       "vm.tiktok.com share link)."})
+    ref, target_url = target
+    lang = lang.strip() if re.match(r"^[A-Za-z0-9-]{1,20}$", lang.strip() or "") else None
+    key = ("tiktok", ref, lang or "")
+    cached = _cache_get(key)
+    if cached and "error" in cached:
+        e = cached["error"]
+        raise HTTPException(status_code=e["status"], detail={"code": e["code"], "message": e["message"]})
+    if cached:
+        return {**cached, "cached": True}
+    _enforce("tiktok_transcript", request)
+    try:
+        result = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_tiktok_with_slot, target_url, lang), timeout=TRANSCRIPT_TIMEOUT)
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail={
+            "code": "timeout", "message": "TikTok took too long to answer. Try again."})
+    except TranscriptError as e:
+        if e.code in ("no_captions", "unavailable"):
+            _cache_put(key, {"error": {"code": e.code, "message": e.message, "status": e.status}})
+        raise HTTPException(status_code=e.status, detail={"code": e.code, "message": e.message})
+    _cache_put(key, result)
+    _cache_put(("tiktok", result["video_id"], lang or ""), result)
     return {**result, "cached": False}
 
 

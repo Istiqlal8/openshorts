@@ -54,11 +54,19 @@ jump, and every logo on the site must reach the landing.
   direct when there are none; **never** the per-GB `PROXY_URL`. A static route
   that answers with zero formats and zero captions is a degraded route, not a
   "no captions" verdict.
+- `GET /api/tools/tiktok-transcript` reads the WebVTT captions TikTok's own
+  player already serves (yt-dlp with `writesubtitles`, nothing downloaded),
+  only through TikTok's extractors (`allowed_extractors`) and inside
+  `ssrf_guard.guarded()`, because a vm.tiktok.com share link redirects. Routes:
+  direct, then up to two statics; never `PROXY_URL`. Video links are rebuilt
+  from the numeric id before they reach yt-dlp.
 - `POST /api/tools/youtube-metadata` is one Gemini text call (tags / titles /
   description) with the managed key.
 - Per-IP windows + a global daily cap per tool, 24 h cache (also for
   "no captions" / "unavailable").
-- Pages: `seo/tools.js` (hub + 3 tools) and `seo/autopilot-pages.js`
+- Pages: `seo/tools.js` (hub, 3 tools and `/tools/tiktok-transcript-generator`,
+  which mounts the transcript widget with `data-platform="tiktok"`; the widget
+  picks the endpoint from the pasted link) and `seo/autopilot-pages.js`
   (`/auto-clip`, `/youtube-automation`). A tool page carries `tool: {entry, html}`:
   the form is in the static HTML, the behaviour is a Vite entry in
   `dashboard/tools/*.js` (`vite.config.js` rollupOptions.input) that
