@@ -193,7 +193,7 @@ const youtubeClipMaker = () => common('/youtube-clip-maker', {
     title: 'One link in, a set of vertical clips out',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-shorts-maker', '/tiktok-clip-maker', '/auto-reframe', '/alternatives/opus-clip'],
+  related: ['/how-to-clip-a-youtube-video', '/youtube-shorts-maker', '/auto-reframe', '/tiktok-clip-maker', '/alternatives/opus-clip'],
   tldr: [
     'Paste the link of a 40-minute interview and OpenShorts reads all of it: a transcript with a timestamp on every word, a map of the camera cuts, and a score for each 90-second stretch. The ten best stretches go to a second pass that cuts the clips, and for a source that long it is asked for 6 to 12 of them, each 15 to 60 seconds, each opening on a sentence rather than halfway through one.',
     'Every clip comes back vertical, captioned and with a hook line over the first seconds, ready to post as a Short, a TikTok or a Reel. You never download the YouTube video or upload it again.',
@@ -226,6 +226,10 @@ separate MP4 files in 9:16, each one reframed, captioned and titled, that you
 keep like any other export and can upload anywhere. When people search for a
 "YouTube video clip converter" this is usually what they mean: turn the long
 horizontal upload into short vertical pieces, not save a timestamp.</p>
+<p>If you only need one moment and would rather cut it by hand, <a
+href="/how-to-clip-a-youtube-video">how to clip a YouTube video</a> walks
+through the four free ways: the Clip button, YouTube Studio, ffmpeg, and an AI
+clipper for Shorts.</p>
 
 <h2>Which links it takes</h2>
 <p>Anything that points at <strong>one</strong> public video works: a
@@ -355,7 +359,7 @@ const youtubeShortsMaker = () => common('/youtube-shorts-maker', {
     title: 'Your next week of Shorts is already in last week\'s video',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-clip-maker', '/ai-reel-generator', '/tiktok-clip-maker', '/opus-clip-free-alternative'],
+  related: ['/youtube-clip-maker', '/ai-reel-generator', '/how-to-clip-a-youtube-video', '/tiktok-clip-maker', '/opus-clip-free-alternative'],
   tldr: [
     'A one-hour podcast episode is, as far as YouTube Shorts are concerned, a quarry. OpenShorts reads the whole of it, ranks every stretch for how well it would play to someone who has never heard of you, and cuts the best 6 to 12 into vertical Shorts with captions, a hook over the opening seconds and a title written for the Shorts feed.',
     'Then it can post them to your channel for you, one a day if you like, so the long video you already made keeps feeding the Shorts shelf for a week or more.',
@@ -418,7 +422,9 @@ covers the one-off job: you have a YouTube link and want it turned into
 vertical clips without downloading anything. This page is about running a
 Shorts shelf: deciding the length, the hook, the captions and the titles, and
 posting on a schedule. Same pipeline underneath; use whichever question you
-came with.</p>
+came with. And if all you want is a single moment trimmed by hand, <a
+href="/how-to-clip-a-youtube-video">how to clip a YouTube video</a> compares the
+free manual routes with the AI one.</p>
 
 <h2>Works with links from other sites too</h2>
 <p>The long video does not have to be on YouTube. The box above takes public
@@ -1089,7 +1095,7 @@ const autoReframe = () => common('/auto-reframe', {
     title: 'Vertical clips that keep the person in the frame',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-clip-maker', '/twitch-clip-maker', '/ai-reel-generator', '/alternatives/2short'],
+  related: ['/youtube-clip-maker', '/sermon-clip-maker', '/twitch-clip-maker', '/ai-reel-generator', '/alternatives/2short'],
   tldr: [
     'A 16:9 frame is 1.78 times wider than it is tall; a 9:16 one is 0.56. Converting landscape to portrait throws away about two thirds of the width, and the only question is which two thirds. A static crop answers once for the whole video. Auto reframe answers scene by scene, and here it answers with more than one shape: a tracked crop for one speaker, two stacked halves for two, a full-width screen with the presenter under it.',
     'Paste a long horizontal video and you get vertical clips back with the framing already decided, plus an editor to overrule it on the scenes where it chose wrong.',
@@ -1111,7 +1117,9 @@ each of those needs the frame to change with the content, and no single crop
 position can do it. Auto reframe does the looking. The difference shows up
 most on exactly the footage people most want to clip, interviews and
 podcasts, where a fixed centre crop either cuts the guest out or shows an
-empty chair.</p>
+empty chair. Church services are the other common case: a preacher who walks
+the stage through a whole sermon, which the <a href="/sermon-clip-maker">sermon
+clip maker</a> handles with the same tracking.</p>
 ${demoBlock('split')}
 
 <h2>The layouts, and when each one is used</h2>

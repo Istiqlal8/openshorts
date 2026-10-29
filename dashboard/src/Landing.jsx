@@ -249,6 +249,54 @@ const FAQItem = ({ question, answer, isOpen, onClick }) => (
   </div>
 );
 
+// Internal links to the per-platform pages. The same links, in the same order,
+// are in seo/landing-fallback.js so they exist in the static HTML too.
+const LINK = 'text-ink2 underline underline-offset-2 hover:text-ink transition-colors';
+
+const WORKS_WITH = [
+  ['/youtube-clip-maker', 'youtube'],
+  ['/twitch-clip-maker', 'twitch'],
+  ['/kick-clip-maker', 'kick'],
+  ['/tiktok-clip-maker', 'tiktok'],
+  ['/podcast-to-shorts', 'podcasts'],
+];
+
+const PLATFORMS = [
+  {
+    icon: Youtube,
+    title: 'YouTube clips',
+    text: 'Paste a YouTube link and get vertical clips back, Shorts for your own channel, or the whole video turned into 9:16 pieces.',
+    links: [['/youtube-clip-maker', 'YouTube clip maker'], ['/youtube-shorts-maker', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']],
+  },
+  {
+    icon: Instagram,
+    title: 'TikTok & Reels',
+    text: 'The same clips, captioned and with a hook, sent to TikTok and Instagram Reels from the dashboard.',
+    links: [['/tiktok-clip-maker', 'TikTok clip maker'], ['/ai-reel-generator', 'AI reel generator']],
+  },
+  {
+    icon: Monitor,
+    title: 'Streams',
+    text: 'Hours-long Twitch and Kick VODs clipped in parts, with the facecam kept and quiet gameplay still handled.',
+    links: [['/twitch-clip-maker', 'Twitch clip maker'], ['/kick-clip-maker', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']],
+  },
+  {
+    icon: FileVideo,
+    title: 'Podcasts & talks',
+    text: 'Both podcast hosts kept in frame, only the sermon clipped out of a service, and a speaker who walks the stage tracked.',
+    links: [['/podcast-to-shorts', 'Podcast clip maker'], ['/sermon-clip-maker', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']],
+  },
+];
+
+const SWITCHING = [
+  ['/alternatives/opus-clip', 'vs opus clip'],
+  ['/alternatives/klap', 'vs klap'],
+  ['/alternatives/vizard', 'vs vizard'],
+  ['/alternatives/submagic', 'vs submagic'],
+  ['/free-ai-clipping-tools-compared', 'free plans compared'],
+  ['/alternatives', 'all alternatives'],
+];
+
 export default function Landing({ onLaunchApp }) {
   const { billingEnabled } = useAuth();
   const [openFaq, setOpenFaq] = React.useState(null);
@@ -510,6 +558,16 @@ export default function Landing({ onLaunchApp }) {
                 self-host free on github →
               </a>
             </p>
+
+            <p className="mt-4 text-sm text-muted lowercase">
+              works with links from{' '}
+              {WORKS_WITH.map(([href, label], i) => (
+                <React.Fragment key={href}>
+                  {i > 0 && ' · '}
+                  <a href={href} className={LINK}>{label}</a>
+                </React.Fragment>
+              ))}
+            </p>
           </div>
 
           {/* Apparatus — instrument bezel holding a real 9:16 clip */}
@@ -555,6 +613,30 @@ export default function Landing({ onLaunchApp }) {
               <div className="eyebrow mt-2">{label}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* By platform: one described card per source/destination, linking the
+          per-platform pages. */}
+      <section id="platforms" className="py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <SectionHeader eyebrow="Platforms" title="Made for every platform: YouTube, TikTok, streams and podcasts">
+            One clip generator, tuned to where the video comes from and where the clips are going.
+          </SectionHeader>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {PLATFORMS.map((p) => (
+              <div key={p.title} className="card p-6 flex flex-col">
+                <p.icon size={18} className="text-brass mb-4" />
+                <h3 className="font-display text-xl lowercase text-ink mb-2">{p.title}</h3>
+                <p className="text-muted text-sm leading-relaxed mb-4">{p.text}</p>
+                <ul className="mt-auto space-y-1.5 text-sm lowercase">
+                  {p.links.map(([href, label]) => (
+                    <li key={href}><a href={href} className={LINK}>{label} →</a></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -739,6 +821,9 @@ export default function Landing({ onLaunchApp }) {
               Your first video is free, up to 60 minutes. Then 20 free minutes a month — no credit card. Cancel anytime.
             </SectionHeader>
             <PricingSection onRequireLogin={() => { window.location.hash = '#/pricing'; }} />
+            <p className="mt-8 text-sm lowercase">
+              <a href="/pricing" className={LINK}>see all plans and limits →</a>
+            </p>
           </div>
         </section>
       )}
@@ -780,6 +865,16 @@ export default function Landing({ onLaunchApp }) {
                 <ComparisonRow feature="Usage Limits" openshorts={<span className="text-ok text-sm">Unlimited self-hosted</span>} opusclip={<span className="text-muted text-sm">Per plan</span>} kapwing={<span className="text-muted text-sm">Per plan</span>} />
               </tbody>
             </table>
+          </div>
+          <div className="mt-10">
+            <h3 className="font-display text-xl lowercase text-ink mb-4">switching from another tool?</h3>
+            <div className="flex flex-wrap gap-2">
+              {SWITCHING.map(([href, label]) => (
+                <a key={href} href={href} className="px-4 py-1.5 rounded-full border border-rule text-sm lowercase text-muted hover:text-ink hover:border-brass transition-colors">
+                  {label}
+                </a>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -1047,12 +1142,17 @@ export default function Landing({ onLaunchApp }) {
             <a href="/ai-reel-generator" className="hover:text-ink transition-colors">ai reel generator</a>
             <a href="/twitch-clip-maker" className="hover:text-ink transition-colors">twitch clip maker</a>
             <a href="/kick-clip-maker" className="hover:text-ink transition-colors">kick clip maker</a>
+            <a href="/auto-reframe" className="hover:text-ink transition-colors">auto reframe</a>
+            <a href="/sermon-clip-maker" className="hover:text-ink transition-colors">sermon clip maker</a>
+            <a href="/how-to-clip-a-youtube-video" className="hover:text-ink transition-colors">how to clip a youtube video</a>
             <a href="/pricing" className="hover:text-ink transition-colors">pricing</a>
             <a href="/open-source-video-clipper" className="hover:text-ink transition-colors">open source video clipper</a>
+            <a href="/self-hosted-ai-clip-maker" className="hover:text-ink transition-colors">self-hosted ai clip maker</a>
             <a href="/podcast-to-shorts" className="hover:text-ink transition-colors">podcast clips</a>
             <a href="/youtube-to-shorts-converter" className="hover:text-ink transition-colors">youtube to shorts</a>
             <a href="/how-openshorts-works" className="hover:text-ink transition-colors">how it works</a>
             <a href="/alternatives" className="hover:text-ink transition-colors">alternatives</a>
+            <a href="/free-ai-clipping-tools-compared" className="hover:text-ink transition-colors">free ai clipping tools compared</a>
             <a href="/alternativas" className="hover:text-ink transition-colors">alternativas</a>
             <a href="/alternatives/opus-clip" className="hover:text-ink transition-colors">vs opus clip</a>
             <a href="/opus-clip-pricing" className="hover:text-ink transition-colors">opus clip pricing</a>
