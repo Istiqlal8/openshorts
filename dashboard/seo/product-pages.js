@@ -465,6 +465,7 @@ const ugcGenerator = () => ({
     title: 'A product link in, a UGC-style ad out',
     body: `Open AI Shorts in the app and add your fal.ai and ElevenLabs keys: about ${UGC.lowCost} a video billed by them. The script runs on your plan, free plan included; paid plans from $${STARTER.monthly.price}/month.`,
     button: 'Make a UGC video',
+    href: `${SITE.url}/#app?tab=saasshorts`,
   },
   tldr: [
     `OpenShorts' AI Shorts turns a product URL or a short description into a vertical UGC-style ad: Gemini researches the product and writes 20 to 25 second scripts (hook, problem, solution, demo, call to action), an AI actor says it with lip-synced voice, two b-roll inserts cover the problem and the product, and the captions are burned in. Output is a 1080x1920 MP4 for TikTok, Reels and Shorts.`,

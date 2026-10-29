@@ -21,6 +21,7 @@ import { autopilotPages } from './autopilot-pages.js'
 import { guidePages } from './guide-pages.js'
 import { clipToolPages } from './clip-tools.js'
 import { hubPages } from './hub-pages.js'
+import { productPages } from './product-pages.js'
 
 const li = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`
 const ol = (items) => `<ol>${items.map((i) => `<li>${i}</li>`).join('')}</ol>`
@@ -2760,7 +2761,7 @@ export function buildPages() {
   // The tool and autopilot modules name their own neighbours. The topic hubs
   // (/platforms, /use-cases, /how-to) come last: they list only pages that
   // are actually built, so they are built from everything else.
-  const rest = [...pages, ...guidePages(), ...autopilotPages(), ...toolPages(), ...clipToolPages()]
+  const rest = [...pages, ...guidePages(), ...autopilotPages(), ...toolPages(), ...clipToolPages(), ...productPages()]
   return [...rest, ...hubPages(rest)]
 }
 
@@ -2768,7 +2769,10 @@ export function buildPages() {
  * dump of every URL: the described link tells an engine what it will find. */
 export function relatedFor(page, all) {
   const blurb = {
-    '/alternatives': 'Seven tools compared, with entry pricing and free plans.',
+    '/alternatives': 'Nine tools compared, with entry pricing and free plans.',
+    '/tools/ai-thumbnail-maker': 'Thumbnails, 10 titles and a chaptered description from your video.',
+    '/ai-ugc-video-generator': 'A product URL in, a 20-25 s ad with a lip-synced AI actor out.',
+    '/tools/tiktok-transcript-generator': 'Paste a TikTok link, get its captions as text, TXT or SRT.',
     '/vizard-ai': 'A review: what it does, pricing, the free plan, pros and cons.',
     '/alternatives/vidyo-ai': 'Vidyo.ai became Quso: what changed and what it costs.',
     '/alternatives/2short': 'Cheapest per hour, unwatermarked free plan, links only.',

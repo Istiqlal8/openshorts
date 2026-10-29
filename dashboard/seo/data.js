@@ -903,7 +903,7 @@ export const COMPARISON_ROWS = [
   { feature: 'Word-level auto subtitles', os: 'Yes, faster-whisper', vendor: 'Yes' },
   { feature: 'AI voice dubbing, 30+ languages', os: 'Yes, with your own ElevenLabs key', vendor: 'No' },
   { feature: 'AI UGC video with lip-synced actors', os: 'Yes, from $0.65/video', vendor: 'No' },
-  { feature: 'Free AI YouTube thumbnail & title studio', os: 'Yes', vendor: 'No' },
+  { feature: 'Free AI YouTube thumbnail & title studio', os: 'Yes when self-hosted · thumbnails on paid Cloud plans', vendor: 'No' },
   { feature: 'Usage cap', os: 'None when self-hosted · metered on Cloud', vendor: 'Metered on every tier' },
 ]
 

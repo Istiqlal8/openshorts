@@ -50,6 +50,7 @@ export const NAV_GROUPS = [
       { href: '/auto-reframe', label: 'Auto reframe 9:16' },
       { href: '/auto-clip', label: 'Auto clip', sub: 'Autopilot' },
       { href: '/youtube-automation', label: 'YouTube automation' },
+      { href: '/ai-ugc-video-generator', label: 'AI UGC video ads', sub: { en: 'AI actors', es: 'Actores IA' } },
       { href: '/how-to', label: { en: 'How-to guides', es: 'Guías' }, sub: { en: 'Clip, self-host, automate', es: 'Recortar, autoalojar, automatizar' } },
     ],
   },
@@ -73,6 +74,8 @@ export const NAV_GROUPS = [
     items: [
       { href: '/tools', label: { en: 'All free tools', es: 'Todas las herramientas' } },
       { href: '/youtube-transcript-generator', label: 'YouTube transcript generator' },
+      { href: '/tools/tiktok-transcript-generator', label: 'TikTok transcript generator' },
+      { href: '/tools/ai-thumbnail-maker', label: 'AI thumbnail maker' },
       { href: '/youtube-tag-generator', label: 'Tag & title generator' },
       { href: '/video-aspect-ratio-converter', label: 'Video to 9:16 converter' },
       { href: '/mcp', label: 'MCP & API' },

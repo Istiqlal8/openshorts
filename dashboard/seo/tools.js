@@ -48,6 +48,11 @@ export const TOOLS = [
     blurb: 'Paste a link, get the transcript with timestamps. Copy it or download TXT and SRT.',
   },
   {
+    path: '/tools/tiktok-transcript-generator',
+    name: 'TikTok transcript generator',
+    blurb: 'Paste a TikTok link, get the captions as text. Copy or download TXT and SRT.',
+  },
+  {
     path: '/youtube-tag-generator',
     name: 'YouTube tag, title and description generator',
     blurb: 'Describe the video in a few lines, get tags, 10 title options or a description.',
@@ -80,7 +85,7 @@ const toolsHub = () => ({
   description:
     'Free YouTube tools with no sign-up: transcript generator, tag, title and description generator, and a video to 9:16 converter that runs in your browser.',
   h1: 'Free tools for YouTube and short-form video',
-  lede: 'Three small tools that do one job each, free and without an account. They come from the same team as the OpenShorts clip generator.',
+  lede: 'Small tools that do one job each, free and without an account. They come from the same team as the OpenShorts clip generator.',
   breadcrumb: [{ name: 'Free tools' }],
   published: PUBLISHED,
   updated: PUBLISHED,
