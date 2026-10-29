@@ -126,18 +126,28 @@ anything, see <a href="/auto-clip">auto clip with Autopilot</a>.</p>
 })
 
 /* ------------------------------------------------------------------------ */
-/* /youtube-transcript-generator                                             */
+/* /youtube-transcript-generator and /tools/tiktok-transcript-generator       */
 /* ------------------------------------------------------------------------ */
+/* Both pages mount the same widget (dashboard/tools/transcript.js). The form's
+ * data-platform picks the endpoint for a bare id; a pasted link picks its own,
+ * so a TikTok link on the YouTube page (or the reverse) still works.
+ *
+ * Every claim about behaviour below is read off free_tools.py: per-network
+ * limits (LIMITS), the 24 h cache, the track order (choose_track), machine
+ * translations never offered, and the "no captions" / "unavailable" verdicts.
+ * Change the copy if that code changes. */
 
-const transcriptTool = `
-<section class="tool" id="tool" aria-label="YouTube transcript generator">
-  <form id="yt-form" class="tool-row" autocomplete="off">
-    <label for="yt-url" class="sr">YouTube video link</label>
+const TRANSCRIPT_UPDATED = '2026-10-29'
+
+const transcriptForm = ({ platform, label, placeholder, hint }) => `
+<section class="tool" id="tool" aria-label="${esc(label)}">
+  <form id="yt-form" class="tool-row" autocomplete="off" data-platform="${platform}">
+    <label for="yt-url" class="sr">${esc(platform === 'tiktok' ? 'TikTok video link' : 'YouTube video link')}</label>
     <input id="yt-url" name="url" type="url" inputmode="url" required
-      placeholder="https://www.youtube.com/watch?v=...">
+      placeholder="${esc(placeholder)}">
     <button type="submit" class="btn-primary">Get transcript</button>
   </form>
-  <p class="tool-hint">Any public video with captions, including YouTube's auto-generated ones. Watch, youtu.be, Shorts and live links all work.</p>
+  <p class="tool-hint">${hint}</p>
   <div id="yt-status" class="tool-status" role="status" aria-live="polite" hidden></div>
   <div id="yt-result" hidden>
     <div class="tool-meta"><strong id="yt-title"></strong><span id="yt-sub"></span></div>
@@ -150,11 +160,31 @@ const transcriptTool = `
     </div>
     <div id="yt-text" class="transcript" tabindex="0" aria-label="Transcript"></div>
     <div class="cta-inline">
-      <p>Want the best moments of this video as vertical clips with subtitles? OpenShorts cuts it into 3 to 15 shorts. 20 free minutes a month.</p>
-      <button type="button" id="yt-clip" class="btn-primary">Turn this video into clips</button>
+      <p>${platform === 'tiktok'
+    ? 'Have the long video this TikTok came from? OpenShorts cuts it into 3 to 15 vertical clips with subtitles. 20 free minutes a month.'
+    : 'Want the best moments of this video as vertical clips with subtitles? OpenShorts cuts it into 3 to 15 shorts. 20 free minutes a month.'}</p>
+      <button type="button" id="yt-clip" class="btn-primary">${platform === 'tiktok' ? 'Clip a long video' : 'Turn this video into clips'}</button>
     </div>
   </div>
 </section>`
+
+const transcriptTool = transcriptForm({
+  platform: 'youtube',
+  label: 'YouTube transcript generator',
+  placeholder: 'https://www.youtube.com/watch?v=...',
+  hint: 'Free, no sign-up. Works on any public video with captions, including YouTube\'s auto-generated ones. Watch, youtu.be, Shorts and live links. Copy the text or download TXT or SRT, with or without timestamps.',
+})
+
+const tiktokTool = transcriptForm({
+  platform: 'tiktok',
+  label: 'TikTok transcript generator',
+  placeholder: 'https://www.tiktok.com/@user/video/...',
+  hint: 'Free, no sign-up. Paste a TikTok video link or a share link from the app (vm.tiktok.com). Works when TikTok shows captions on the video. Copy the text or download TXT or SRT.',
+})
+
+const exampleList = (items, urlOf) => `<ul>
+${items.map(([id, label, note]) => `<li><button type="button" class="btn-ghost" data-example-url="${esc(urlOf(id))}">Run</button> ${esc(label)}. ${esc(note)}</li>`).join('\n')}
+</ul>`
 
 const EXAMPLES = [
   ['arj7oStGLkU', 'Tim Urban, "Inside the Mind of a Master Procrastinator" (TED, 14 min)',
@@ -165,89 +195,420 @@ const EXAMPLES = [
     '128 caption lines, a good short test.'],
 ]
 
-const transcriptPage = () => ({
-  path: '/youtube-transcript-generator',
-  title: 'YouTube Transcript Generator: Free, TXT and SRT | OpenShorts',
-  description:
-    'Paste a YouTube link, get the full transcript with timestamps. Copy it or download TXT or SRT. Free, no sign-up, works with auto-generated captions.',
-  h1: 'YouTube transcript generator',
-  lede: 'Paste a link to a YouTube video and get its transcript with timestamps. Copy it, or download it as a TXT or SRT file. Free, no account.',
-  breadcrumb: [{ name: 'Free tools', path: '/tools' }, { name: 'YouTube transcript generator' }],
-  published: PUBLISHED,
-  updated: PUBLISHED,
-  cta: false,
-  tool: { entry: 'tool-transcript', html: transcriptTool },
-  relatedTitle: 'More free tools',
-  related: ['/youtube-tag-generator', '/video-aspect-ratio-converter', '/youtube-to-shorts-converter'],
-  body: `
-<h2>How it works</h2>
-<p>The tool asks YouTube for the captions the video already has. If the creator
-uploaded subtitles in the language spoken in the video, you get those, because a
-human wrote them. If not, you get YouTube's automatic captions, which are
-speech recognition and read like it: no punctuation on older videos, and names
-spelled the way they sound. When a video has several tracks, the menu above the
-transcript switches between them. Machine translations are not offered, because
-they are not what was said.</p>
-<p>Timestamps link to that moment of the video. <strong>Copy</strong> takes the
-text as shown (with or without timestamps), <strong>TXT</strong> saves the same
-thing to a file, and <strong>SRT</strong> gives you a subtitle file you can load
-into Premiere, DaVinci Resolve, CapCut or back into YouTube Studio.</p>
+const howToNode = (path, name, steps) => ({
+  '@type': 'HowTo',
+  '@id': `${SITE.url}${path}#howto`,
+  name,
+  totalTime: 'PT1M',
+  tool: [{ '@type': 'HowToTool', name: 'A web browser' }],
+  step: steps.map(([stepName, text], i) => ({
+    '@type': 'HowToStep',
+    position: i + 1,
+    name: stepName,
+    text,
+    url: `${SITE.url}${path}#tool`,
+  })),
+})
 
-<h2>Try it with a real video</h2>
-<p>These were checked on 23 September 2026. Click one to run it:</p>
-<ul>
-${EXAMPLES.map(([id, label, note]) => `<li><button type="button" class="btn-ghost" data-example-url="https://www.youtube.com/watch?v=${id}">Run</button> ${esc(label)}. ${esc(note)}</li>`).join('\n')}
-</ul>
+const YT_STEPS = [
+  ['Copy the video link', 'On YouTube, click Share under the video and copy the link, or copy the address bar. Watch, youtu.be, Shorts and live links all work.'],
+  ['Paste it and click Get transcript', 'Paste the link into the box at the top of this page and click Get transcript. The text appears in a second or two.'],
+  ['Pick the caption track', 'If the video has captions in more than one language, choose the one you want from the menu above the transcript.'],
+  ['Choose timestamps or plain text', 'Tick or untick timestamps. With them, every line starts with the time it is said; without them you get one block of text.'],
+  ['Copy or download', 'Click Copy, Download TXT for a text file, or Download SRT for a subtitle file you can load into a video editor or YouTube Studio.'],
+]
 
-<h2>When there is no transcript</h2>
-<p>Some videos have no captions at all: music, very new uploads that YouTube has
-not processed yet, and channels that turned automatic captions off. Private,
-members-only and age-restricted videos cannot be read either. In those cases the
-tool says so rather than inventing text. If you need the words anyway, the
-<a href="/free-ai-clip-generator">OpenShorts clip generator</a> runs its own
-speech recognition with word-level timing and uses it to cut the video into
-subtitled vertical clips.</p>
-
-<h2>What people use a transcript for</h2>
-<ul>
-<li>Quoting a talk or an interview accurately, with the timestamp as the citation.</li>
-<li>Turning a video into a blog post, a newsletter or show notes.</li>
-<li>Pasting it into ChatGPT or Claude to summarise, find a moment or draft chapters.</li>
-<li>Editing: an SRT lines the words up with the timeline in any video editor.</li>
-</ul>
-
-${faqBlock([
+const YT_FAQ = [
   {
-    q: 'Is the YouTube transcript generator free?',
-    a: 'Yes. There is no account and no payment. To keep it fast for everyone it allows 10 transcripts per 10 minutes from the same network.',
+    q: 'How do I get the transcript of a YouTube video?',
+    a: 'Copy the video link, paste it into the box on this page and click Get transcript. You get the full text with timestamps, which you can copy or download as TXT or SRT. On YouTube itself, open the description and click Show transcript, which shows the text in a panel but has no download button.',
+  },
+  {
+    q: 'Is this YouTube transcript generator free?',
+    a: 'Yes. There is no account, no payment and no sign-up. To keep it fast for everyone it allows 10 transcripts per 10 minutes and 60 per day from the same network, and the whole tool has a shared daily cap that resets at midnight UTC.',
+  },
+  {
+    q: 'Can I get a YouTube transcript with timestamps?',
+    a: 'Yes. Timestamps are on by default and each one links to that moment of the video. Untick timestamps to get plain text in one block. Copy and TXT follow the checkbox; the SRT file always carries start and end times.',
+  },
+  {
+    q: 'Can I download a YouTube transcript as a text file or SRT?',
+    a: 'Yes. Download TXT saves the text as shown, with or without timestamps. Download SRT saves a subtitle file with one numbered cue per caption line, which Premiere Pro, DaVinci Resolve, CapCut and YouTube Studio can import.',
   },
   {
     q: 'Does it work on videos with only auto-generated captions?',
-    a: 'Yes. When the creator has not uploaded subtitles, the tool returns YouTube\'s automatic captions in the language spoken in the video and labels them as auto-generated.',
+    a: 'Yes. When the creator has not uploaded subtitles, the tool returns YouTube\'s automatic captions in the language spoken in the video and labels them as auto-generated. They are speech recognition, so expect misspelled names and, on older videos, little punctuation.',
   },
   {
     q: 'Why does it say a video has no captions?',
-    a: 'Because YouTube has none for it: no uploaded subtitles and no automatic track. That happens with music, with very recent uploads and when a channel disables automatic captions. Private, members-only and age-restricted videos cannot be read at all.',
+    a: 'Because YouTube has none for it: no uploaded subtitles and no automatic track. That happens with music, with very recent uploads YouTube has not processed yet, and when a channel turns automatic captions off. The tool does not guess text it cannot read.',
   },
   {
-    q: 'Can I download the transcript as SRT?',
-    a: 'Yes. The SRT button saves a subtitle file with one cue per caption line, which video editors and YouTube Studio can import.',
+    q: 'Can I get the transcript of a YouTube Short or a live stream?',
+    a: 'Yes, paste the Shorts or live link as it is. A Short with speech usually has an automatic track like any other video. A live stream has captions once it has finished and YouTube has processed it; a stream in progress or a premiere that has not aired cannot be read.',
   },
   {
-    q: 'Do you store the transcripts?',
-    a: 'The server keeps the result for up to 24 hours so that the same video is not fetched from YouTube twice, and nothing is tied to you.',
+    q: 'Which languages does it support?',
+    a: 'Every language YouTube has a real caption track for. The menu lists the tracks uploaded by the creator and YouTube\'s automatic track in the spoken language. YouTube\'s machine translations of the automatic track are left out, because they are not what was said.',
   },
-])}
+  {
+    q: 'Can I translate a YouTube transcript?',
+    a: 'If the creator uploaded subtitles in other languages, pick one from the menu: those are human translations. Otherwise download the TXT or SRT and run it through a translation tool; an SRT keeps its timing, so the translated file still works as subtitles.',
+  },
+  {
+    q: 'Does it work on private, members-only or age-restricted videos?',
+    a: 'No. The tool reads only what YouTube shows to anyone without signing in. Private, members-only, age-restricted and removed videos get a message saying their captions cannot be read.',
+  },
+  {
+    q: 'Can I get a transcript from TikTok or other sites?',
+    a: 'TikTok, yes: paste a TikTok link here or use the TikTok transcript generator, which reads the captions TikTok shows on the video. Vimeo, Instagram and other sites are not supported.',
+  },
+  {
+    q: 'Do you store the transcripts or the links I paste?',
+    a: 'The server keeps each result in memory for up to 24 hours so the same video is not fetched from YouTube twice, and nothing is tied to you because there is no account. Analytics record that the tool was used and whether it worked, not which video.',
+  },
+]
+
+const transcriptPage = () => ({
+  path: '/youtube-transcript-generator',
+  title: 'YouTube Transcript Generator: Free, TXT & SRT | OpenShorts',
+  description:
+    'Get the transcript of any YouTube video free: paste the link, copy the text with or without timestamps, or download TXT or SRT. No sign-up, any language.',
+  h1: 'YouTube transcript generator: free, with timestamps, TXT or SRT',
+  lede: 'Paste a YouTube link and get the full transcript in a couple of seconds, every line timestamped. Copy it or download a TXT or SRT file. <strong>Free, no account, no sign-up.</strong>',
+  breadcrumb: [{ name: 'Free tools', path: '/tools' }, { name: 'YouTube transcript generator' }],
+  published: PUBLISHED,
+  updated: TRANSCRIPT_UPDATED,
+  cta: false,
+  tool: { entry: 'tool-transcript', html: transcriptTool },
+  relatedTitle: 'More free tools',
+  related: ['/tools/tiktok-transcript-generator', '/youtube-tag-generator', '/video-aspect-ratio-converter'],
+  body: `
+<h2>How to get the transcript of a YouTube video</h2>
+<ol>
+${YT_STEPS.map(([name, text]) => `<li><strong>${esc(name)}.</strong> ${esc(text)}</li>`).join('\n')}
+</ol>
+<p>The tool reads the captions the video already has on YouTube. It does not
+download the video and does not run speech recognition of its own, which is why
+the answer comes back in about the time a page takes to load. Above the text you
+see the video title, the channel, the length, the word count and where the words
+came from: captions uploaded by the creator, or YouTube's auto-generated ones.</p>
+
+<h2>Try it with a real video</h2>
+<p>These were checked on 23 September 2026. Click one to run it:</p>
+${exampleList(EXAMPLES, (id) => `https://www.youtube.com/watch?v=${id}`)}
+
+<h2>Getting the transcript on YouTube itself</h2>
+<p>YouTube has its own transcript viewer, and for reading along with a video it
+works well. Where it falls short is getting the text out: there is no copy or
+download button, and selecting the panel by hand picks up the timestamps line by
+line. The steps below describe YouTube's layout as of October 2026; YouTube moves
+these controls from time to time.</p>
+<p><strong>On a computer.</strong> Open the video and click the description
+under it (the "...more" link) to expand it. Near the end of the description
+there is a Transcript section with a <strong>Show transcript</strong> button.
+The transcript opens in a panel next to the video, each line with its time.
+Clicking a line jumps to that moment, and the panel can hide the timestamps
+and switch language when there is more than one track.</p>
+<p><strong>On the phone app.</strong> Tap the title or description under the
+video, scroll down and tap <strong>Show transcript</strong>. The text scrolls with
+the video. Copying from the app is awkward, so on a phone this page is the
+quicker route to text you can paste somewhere else.</p>
+<p>If you do not see Show transcript at all, the video almost always has no
+captions, and this tool will tell you the same thing.</p>
+
+<h2>With timestamps or as plain text</h2>
+<p>Keep the timestamps when the times matter: quoting someone with the moment as
+the citation, writing chapters, checking a fact against the video, or handing
+the text to an AI model and asking it to point to where something is said. Each
+timestamp here is a link to that second of the video, and copied or downloaded
+text keeps them as <code>[12:34]</code> at the start of each line.</p>
+<p>Untick timestamps when you want prose: a blog draft, notes, a translation, or
+search. Without timestamps the caption lines are joined into one block, which
+reads far better than line-by-line fragments, because YouTube splits captions
+for the screen, not at the end of sentences.</p>
+
+<h2>SRT: the transcript as a subtitle file</h2>
+<p>SRT is the plain-text subtitle format almost every editor and platform
+accepts. Each cue is a number, a start and end time down to the millisecond, and
+the line of text. Download SRT gives you one cue per caption line of the video,
+ready to import into Premiere Pro, DaVinci Resolve, CapCut or back into YouTube
+Studio for a re-upload or a second channel.</p>
+<p>Two details are handled for you. YouTube's automatic captions roll: each line
+stays on screen until the next one finishes, so raw cues overlap. The export
+trims every cue to end where the next begins, so lines do not pile up on top of
+each other, and a caption that would only flash by gets at least half a second
+on screen.</p>
+<p>An SRT made from captions is only as good as the captions. Uploaded subtitles
+are usually clean; automatic ones carry the recognizer's mistakes. If you are
+subtitling a clip for publishing, read it through once.</p>
+
+<h2>Languages, auto-generated captions and translations</h2>
+<p>A YouTube video can have several caption tracks. The tool picks one in this
+order: subtitles a person uploaded in the language spoken in the video; then
+YouTube's automatic track in that language; then any uploaded track, English
+first; then any automatic track. When there is more than one real track, a menu
+above the transcript switches between them without leaving the page.</p>
+<p>YouTube can also machine-translate its automatic captions into dozens of
+languages on the fly. Those are left out of the menu on purpose: they are a
+translation of a transcription, two layers of guessing away from what was said.
+Translations the creator uploaded are real tracks and are offered.</p>
+<p>Automatic captions deserve a word of caution. They are speech recognition, so
+names, brands and jargon come out spelled the way they sound, overlapping
+speakers get merged, and on older videos there is little or no punctuation. For
+a quote you will publish, check the moment in the video: that is what the
+timestamp link is for.</p>
+
+<h2>When there is no transcript</h2>
+<p>Some videos have no captions at all: music and videos without speech, uploads
+so recent that YouTube has not processed them yet, and channels that turned
+automatic captions off. Private, members-only, age-restricted and removed videos
+cannot be read either, and a premiere or a live stream only has captions after it
+has aired and been processed. In each case the tool says so, rather than inventing
+text.</p>
+<p>Occasionally YouTube does not answer at all, and the tool asks you to try
+again in a minute. That is about the connection, not the video: a retry usually
+works, and Show transcript under the description is the fallback.</p>
+<p>If you need the words of a video without captions, the
+<a href="/free-ai-clip-generator">OpenShorts clip generator</a> runs its own
+speech recognition with word-level timing and uses it to cut the video into
+subtitled vertical clips. That is the paid product, with a free allowance of 20
+minutes a month on OpenShorts Cloud and paid plans from $12 a month on
+<a href="/#pricing">the pricing table</a>, or free with no cap when you self-host
+the open source code.</p>
+
+<h2>What people use a YouTube transcript for</h2>
+<ul>
+<li><strong>Notes and studying.</strong> Read a lecture or a tutorial at your own
+speed, search it for the part you need, and keep the timestamps to jump back.</li>
+<li><strong>Quotes with a source.</strong> Copy the exact words of a talk or an
+interview, with the timestamp as the citation and the link to that second.</li>
+<li><strong>Blog posts, newsletters and show notes.</strong> Plain text is a
+first draft for an article version of the video, or the raw material for show
+notes and a description.</li>
+<li><strong>Translation.</strong> Download the SRT, translate it, and you have
+subtitles in another language that keep the original timing.</li>
+<li><strong>Feeding an AI model.</strong> Paste the transcript into ChatGPT,
+Claude or Gemini to summarise it, ask questions about it or draft chapters. Keep
+the timestamps so the answer can point to the moment it comes from. Our
+<a href="/youtube-tag-generator">title, description and tag generator</a> works
+from a short brief, and a few lines of the transcript make a good one.</li>
+<li><strong>Finding the moment to clip.</strong> Skim the text for the line
+worth a Short, then cut it. If you would rather have the whole video cut into
+vertical clips for you, see how OpenShorts handles
+<a href="/platforms/youtube">long YouTube videos</a> and
+<a href="/platforms/youtube-shorts">YouTube Shorts</a>, or paste the link into the
+<a href="/youtube-to-shorts-converter">YouTube to Shorts converter</a>.</li>
+<li><strong>Accessibility and editing.</strong> An SRT lines the words up with
+the timeline in any editor, which is the start of burned-in captions or a
+cleaned-up subtitle track.</li>
+</ul>
+
+<h2>TikTok, Vimeo and other sites</h2>
+<p>TikTok links work in the box above, and there is a page for them: the
+<a href="/tools/tiktok-transcript-generator">TikTok transcript generator</a>
+reads the captions TikTok shows on a video and exports them the same way. Vimeo,
+Instagram, X and other sites are not supported by this tool.</p>
+
+<h2>Limits</h2>
+<ul>
+<li>One video per request. Playlists, channels and search pages are refused; a
+watch link that also names a playlist reads just the video.</li>
+<li>10 transcripts every 10 minutes and 60 a day from the same network, plus a
+shared daily cap for the whole tool that resets at midnight UTC. A video that
+was read in the last 24 hours comes from the cache and does not count.</li>
+<li>Only public videos, only captions that already exist, and no machine
+translations.</li>
+<li>If YouTube takes longer than 45 seconds to answer, the request stops and you
+can try again.</li>
+</ul>
+
+<h2>Privacy</h2>
+<p>There is no account, so nothing you look up is tied to you. The server keeps
+each result in memory for up to 24 hours so a popular video is fetched from
+YouTube once, then forgets it. The transcript is laid out in your browser, and
+Copy, TXT and SRT are produced there too: the files never pass through our
+servers. Analytics record that the tool was used, whether it worked and how long
+it took, not which video you asked for.</p>
+
+${faqBlock(YT_FAQ)}
 `,
-  faq: [
-    { q: 'Is the YouTube transcript generator free?', a: 'Yes. There is no account and no payment. It allows 10 transcripts per 10 minutes from the same network.' },
-    { q: 'Does it work on videos with only auto-generated captions?', a: 'Yes. Without uploaded subtitles it returns YouTube\'s automatic captions in the spoken language, labelled as auto-generated.' },
-    { q: 'Why does it say a video has no captions?', a: 'Because YouTube has none for it: no uploaded subtitles and no automatic track. Private, members-only and age-restricted videos cannot be read at all.' },
-    { q: 'Can I download the transcript as SRT?', a: 'Yes. The SRT button saves a subtitle file that video editors and YouTube Studio can import.' },
-  ],
+  faq: YT_FAQ,
   extraNodes: [
     webApp('/youtube-transcript-generator', 'YouTube transcript generator',
-      'Get the transcript of a YouTube video with timestamps from its existing captions. Copy it or download TXT and SRT.'),
+      'Get the transcript of a YouTube video with timestamps from its existing captions. Copy it or download TXT and SRT. Free, no sign-up.'),
+    howToNode('/youtube-transcript-generator', 'How to get the transcript of a YouTube video', YT_STEPS),
+  ],
+})
+
+/* /tools/tiktok-transcript-generator. Checked against TikTok on 29-oct-2026
+ * from a residential connection (see tests/test_free_tools.py for the parsing
+ * and route rules; the examples below are those checks). */
+
+const TIKTOK_EXAMPLES = [
+  ['https://www.tiktok.com/@hankgreen1/video/7699685948937784590',
+    'Hank Green on how the internet skews our view of people (83 s)', '45 caption lines.'],
+  ['https://www.tiktok.com/@garyvee/video/7701056731048201486',
+    'GaryVee on making content without AI (41 s)', '22 caption lines.'],
+]
+
+const TT_STEPS = [
+  ['Copy the TikTok link', 'In the TikTok app tap Share, then Copy link. On the website, copy the address of the video page.'],
+  ['Paste it and click Get transcript', 'Paste the link into the box at the top of this page and click Get transcript.'],
+  ['Choose timestamps or plain text', 'Tick timestamps to start each line with its time, or untick them for one block of text.'],
+  ['Copy or download', 'Click Copy, Download TXT for a text file, or Download SRT for a subtitle file with the original timing.'],
+]
+
+const TT_FAQ = [
+  {
+    q: 'How do I get the transcript of a TikTok video?',
+    a: 'Copy the video link (Share, then Copy link in the app), paste it into the box on this page and click Get transcript. You get the text TikTok shows as captions, with timestamps, ready to copy or download as TXT or SRT.',
+  },
+  {
+    q: 'Is the TikTok transcript generator free?',
+    a: 'Yes. There is no account, no payment and no sign-up. It allows 10 transcripts per 10 minutes and 60 per day from the same network, with a shared daily cap that resets at midnight UTC.',
+  },
+  {
+    q: 'Why does it say a TikTok has no captions?',
+    a: 'Because TikTok has none for it. TikTok generates captions for many videos with speech, but not for videos without talking or with only music, and creators can turn captions off. The tool does not guess text it cannot read.',
+  },
+  {
+    q: 'Does it work with vm.tiktok.com share links?',
+    a: 'Yes. Share links from the app (vm.tiktok.com, vt.tiktok.com and tiktok.com/t/ links) are followed to the video. A share link that has expired or points to a deleted video gets a message saying so.',
+  },
+  {
+    q: 'Can I download a TikTok transcript as SRT?',
+    a: 'Yes. Download SRT saves one cue per caption line with the timing TikTok uses, which CapCut, Premiere Pro, DaVinci Resolve and YouTube Studio can import.',
+  },
+  {
+    q: 'Does it work on photo posts, LIVE or private videos?',
+    a: 'No. Photo posts have no speech to caption, LIVE streams are not videos the tool can read, and private, friends-only, removed or region-blocked videos are not visible to it.',
+  },
+  {
+    q: 'Can I get the transcript of a TikTok in another language?',
+    a: 'The tool returns the caption tracks TikTok lists for the video, usually one in the spoken language; when there are more, a menu switches between them. For another language, download the SRT and run it through a translation tool.',
+  },
+  {
+    q: 'Do you store the TikTok links I paste?',
+    a: 'The server keeps each result in memory for up to 24 hours so the same video is not fetched twice, and nothing is tied to you. Analytics record that the tool was used and whether it worked, not which video.',
+  },
+]
+
+const tiktokTranscriptPage = () => ({
+  path: '/tools/tiktok-transcript-generator',
+  title: 'TikTok Transcript Generator: Free, TXT & SRT | OpenShorts',
+  description:
+    'Get the transcript of a TikTok video free: paste the link or a vm.tiktok.com share link, then copy the text or download TXT or SRT. No sign-up needed.',
+  h1: 'TikTok transcript generator: copy or download what was said',
+  lede: 'Paste a TikTok link and get the captions as text, every line timestamped. Copy it or download a TXT or SRT file. <strong>Free, no account, no sign-up.</strong>',
+  breadcrumb: [{ name: 'Free tools', path: '/tools' }, { name: 'TikTok transcript generator' }],
+  published: TRANSCRIPT_UPDATED,
+  updated: TRANSCRIPT_UPDATED,
+  cta: false,
+  tool: { entry: 'tool-transcript', html: tiktokTool },
+  relatedTitle: 'More free tools',
+  related: ['/youtube-transcript-generator', '/tiktok-clip-maker', '/video-aspect-ratio-converter'],
+  body: `
+<h2>How to get the transcript of a TikTok</h2>
+<ol>
+${TT_STEPS.map(([name, text]) => `<li><strong>${esc(name)}.</strong> ${esc(text)}</li>`).join('\n')}
+</ol>
+<p>The tool reads the captions TikTok already serves with the video, the same
+lines you see on screen when captions are on. It does not download the video and
+does not run speech recognition of its own. Above the text you see the caption
+of the post, the creator, the length and the word count.</p>
+
+<h2>Try it with a real TikTok</h2>
+<p>These were checked on 29 October 2026. Click one to run it:</p>
+${exampleList(TIKTOK_EXAMPLES, (url) => url)}
+
+<h2>Where TikTok's captions come from</h2>
+<p>TikTok runs speech recognition on many videos with talking and shows the
+result as captions, and creators can edit those captions or turn them off when
+they post. Whatever TikTok's player has for a video is what this tool reads. So
+the text is usually good for clear speech in one voice, and weaker for music,
+crowd noise, slang or several people talking at once. Names come out spelled the
+way they sound.</p>
+<p>The TikTok app shows captions over the video one line at a time, which is fine
+for watching and awkward for copying. Turning those lines into one block of text,
+or into a subtitle file with the original timing, is the job this page does.</p>
+
+<h2>Which links work</h2>
+<ul>
+<li>Video pages: <code>tiktok.com/@creator/video/1234...</code>, with or without
+the tracking parameters the app adds.</li>
+<li>Share links from the app: <code>vm.tiktok.com/...</code>,
+<code>vt.tiktok.com/...</code> and <code>tiktok.com/t/...</code>. They are
+followed to the video they point to; an expired one gets a clear message.</li>
+<li>Embed links and a bare video id.</li>
+</ul>
+<p>Not supported: profiles, hashtags, sounds and collections (one video at a
+time), photo posts and slideshows (nothing spoken to caption), LIVE, and private,
+friends-only, removed or region-blocked videos.</p>
+
+<h2>Timestamps, plain text and SRT</h2>
+<p>With timestamps on, every line starts with the second it is said. TikTok links
+cannot jump to a moment the way YouTube links can, so here the times are plain
+text rather than links. Untick timestamps for one block of prose: the easiest
+form to paste into a document, a caption or an AI model.</p>
+<p>Download SRT gives you a subtitle file with one cue per caption line and
+TikTok's own start and end times, overlaps trimmed. That is the useful format
+when the same video is going somewhere else: import it into CapCut or Premiere,
+restyle the captions, and post the video to Reels or Shorts without retyping a
+word.</p>
+
+<h2>What people use a TikTok transcript for</h2>
+<ul>
+<li><strong>Reposting to other platforms.</strong> The SRT carries the captions
+to Instagram Reels, YouTube Shorts or Facebook with the timing intact.</li>
+<li><strong>Studying what works.</strong> Read the first lines of the videos that
+did well in your niche: the hook is usually in the first sentence, and it is
+easier to compare written down.</li>
+<li><strong>Scripts and captions.</strong> Turn a video into the post caption, a
+thread, a newsletter paragraph or the script for a longer version.</li>
+<li><strong>Quoting accurately.</strong> Copy exactly what a creator said, with
+the time it was said.</li>
+<li><strong>Translation and language learning.</strong> Run the text through a
+translator, or read along slowly with a creator who speaks the language you are
+learning.</li>
+<li><strong>Feeding an AI model.</strong> Paste a few transcripts into ChatGPT,
+Claude or Gemini and ask what the openings have in common, or for a summary.</li>
+</ul>
+
+<h2>When there is no transcript</h2>
+<p>If TikTok has no captions for a video, the tool says so instead of guessing:
+that happens with music, with videos without speech, and when a creator turned
+captions off. If TikTok does not answer, try again in a minute.</p>
+<p>When you have the video file, the <a href="/free-ai-clip-generator">OpenShorts
+clip generator</a> runs its own speech recognition with word-level timing and
+burns the subtitles in. It is built for the other direction too: a long video
+cut into vertical clips, which is what the
+<a href="/tiktok-clip-maker">TikTok clip maker</a> page covers. The free plan is
+20 minutes a month on OpenShorts Cloud; paid plans start at $12 a month on
+<a href="/#pricing">the pricing table</a>, and the open source version is free
+when you self-host it.</p>
+
+<h2>YouTube videos too</h2>
+<p>The same box reads YouTube links, and the
+<a href="/youtube-transcript-generator">YouTube transcript generator</a> explains
+the YouTube side: caption tracks in several languages, timestamps that link to
+the moment, and what to do when a video has none.</p>
+
+<h2>Limits and privacy</h2>
+<p>10 transcripts every 10 minutes and 60 a day from the same network, with a
+shared daily cap that resets at midnight UTC; a video read in the last 24 hours
+comes from the cache and does not count. There is no account. The server keeps
+each result in memory for up to 24 hours and then forgets it, the text and the
+files are produced in your browser, and analytics record that the tool was used,
+not which video.</p>
+
+${faqBlock(TT_FAQ)}
+`,
+  faq: TT_FAQ,
+  extraNodes: [
+    webApp('/tools/tiktok-transcript-generator', 'TikTok transcript generator',
+      'Get the transcript of a TikTok video from the captions TikTok shows. Copy it or download TXT and SRT. Free, no sign-up.'),
+    howToNode('/tools/tiktok-transcript-generator', 'How to get the transcript of a TikTok video', TT_STEPS),
   ],
 })
 
@@ -512,5 +873,5 @@ ${sources([
 })
 
 export function toolPages() {
-  return [toolsHub(), transcriptPage(), metadataPage(), verticalPage()]
+  return [toolsHub(), transcriptPage(), tiktokTranscriptPage(), metadataPage(), verticalPage()]
 }
