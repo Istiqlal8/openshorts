@@ -526,7 +526,7 @@ const DEFAULT_CTA = {
 const ctaBlock = (page) => {
   const c = { ...DEFAULT_CTA, ...(page.cta || {}) }
   // Pages about Autopilot send readers to the app tab, not the landing page.
-  const target = c.href || `${SITE.url}/`
+  const target = c.href || `${SITE.url}/#app`
   const href = target
   return `
 <div class="cta-box">

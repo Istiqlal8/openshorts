@@ -23,8 +23,8 @@ import { renderNav, NAV_CSS, NAV_SCRIPT } from './nav.js'
 
 const S = {
   wrap: 'max-width:72rem;margin:0 auto;padding:0 1.5rem',
-  h1: 'font-family:"Instrument Serif",ui-serif,Georgia,serif;font-weight:400;font-size:clamp(2.2rem,5vw,3.6rem);line-height:1.06;letter-spacing:-.03em;color:oklch(96% 0.006 262);margin:0 0 1.25rem;text-transform:lowercase',
-  h2: 'font-family:"Instrument Serif",ui-serif,Georgia,serif;font-weight:400;font-size:clamp(1.5rem,2.6vw,2rem);line-height:1.15;letter-spacing:-.02em;color:oklch(96% 0.006 262);margin:0 0 1rem;text-transform:lowercase',
+  h1: 'font-family:\'Instrument Serif\',ui-serif,Georgia,serif;font-weight:400;font-size:clamp(2.2rem,5vw,3.6rem);line-height:1.06;letter-spacing:-.03em;color:oklch(96% 0.006 262);margin:0 0 1.25rem;text-transform:lowercase',
+  h2: 'font-family:\'Instrument Serif\',ui-serif,Georgia,serif;font-weight:400;font-size:clamp(1.5rem,2.6vw,2rem);line-height:1.15;letter-spacing:-.02em;color:oklch(96% 0.006 262);margin:0 0 1rem;text-transform:lowercase',
   h3: 'font-size:1rem;font-weight:600;color:oklch(96% 0.006 262);margin:0 0 .35rem',
   p: 'margin:0 0 1rem;color:oklch(86% 0.01 262);line-height:1.65',
   muted: 'margin:0 0 1rem;color:oklch(64% 0.012 262);line-height:1.65',
