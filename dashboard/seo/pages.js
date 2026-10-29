@@ -272,9 +272,13 @@ ${li(c.tiers.map(([n, d]) => `<strong>${esc(n)}</strong>: ${esc(d)}`))}
 ${c.tierNote ? `<p>${esc(c.tierNote)}</p>` : ''}
 
 <h2>Is ${esc(c.name)} free?</h2>
-<p>Not in the usual sense. ${esc(sentence(c.tiers[0][1]))} After that the cheapest plan is
+${
+  c.isFree
+    ? `<p>${esc(c.isFree)} For comparison, OpenShorts Cloud's free plan is ${FREE_CLOUD}, with paid plans from $${STARTER.monthly.price}/month, and the self-hosted edition has no limit at all.</p>`
+    : `<p>Not in the usual sense. ${esc(sentence(c.tiers[0][1]))} After that the cheapest plan is
 ${esc(c.entryPrice)}. If a free plan you can keep using is the requirement,
-OpenShorts has one: ${FREE_CLOUD}, with paid plans from $${STARTER.monthly.price}/month, or no limit at all self-hosted.</p>
+OpenShorts has one: ${FREE_CLOUD}, with paid plans from $${STARTER.monthly.price}/month, or no limit at all self-hosted.</p>`
+}
 
 <h2>${esc(c.name)}'s limits</h2>
 <div class="note"><span class="label">What to check before paying</span><p>${esc(c.gotcha)}</p></div>
@@ -282,7 +286,7 @@ OpenShorts has one: ${FREE_CLOUD}, with paid plans from $${STARTER.monthly.price
 servers and there is no edition you can run yourself.</p>
 
 <h2>Who ${esc(c.name)} is for</h2>
-${li(c.stay.map(esc))}
+${li((c.forWhom || c.stay).map(esc))}
 
 <h2>The open source alternative to ${esc(c.name)}</h2>
 <p>${esc(c.fit)} ${layoutsLine} ${caveat}</p>
@@ -338,7 +342,7 @@ ${
 ${li(c.strengths.map(esc))}`
 }
 ${
-  c.review
+  c.review && !c.forWhom
     ? ''
     : `
 <h2>When to stay on ${esc(c.name)}</h2>
@@ -359,6 +363,7 @@ ${faqBlock(faq)}
 
 ${sources([
   `${esc(c.name)} pricing, checked ${esc(c.checked)} on the vendor's public pricing page.`,
+  ...(c.sources || []).map(([label, url]) => `${esc(label)}, checked ${esc(c.checked)}: <a href="${esc(url)}" rel="nofollow noopener">${esc(url.replace(/^https:\/\//, ''))}</a>`),
   `OpenShorts pipeline details from the project source at <a href="${SITE.repo}" rel="noopener">github.com/mutonby/openshorts</a>.`,
 ])}
 `
@@ -409,6 +414,8 @@ const HUB_JOB = {
   'vidyo-ai': 'Yes, plus scheduling',
   '2short': 'Yes, from links',
   sendshort: 'From the $29 plan',
+  choppity: 'Yes, then you edit the transcript',
+  getmunch: 'Yes, inside a social media suite',
 }
 
 const hubPage = () => {
@@ -420,9 +427,9 @@ const hubPage = () => {
   return {
   path: '/alternatives',
   facts: [
-    { k: 'Tools compared', v: '8', s: 'OpenShorts and 7 cloud clippers' },
+    { k: 'Tools compared', v: '10', s: 'OpenShorts and 9 cloud tools' },
     { k: 'Cheapest paid', v: '$9.90/mo', s: '2short.ai; OpenShorts Cloud $12 monthly' },
-    { k: 'Open source', v: '1 of 8', s: 'Only OpenShorts can be self-hosted' },
+    { k: 'Open source', v: '1 of 10', s: 'Only OpenShorts can be self-hosted' },
     { k: 'Prices checked', v: 'Oct 2026', s: 'On every vendor pricing page' },
   ],
   title: 'Open Source Opus Clip & Klap Alternatives | OpenShorts',
@@ -2361,6 +2368,16 @@ const COMPARISON_INDEX = [
     title: 'SendShort, comparado',
     blurb: 'Suite de vídeo corto: el recorte de vídeos largos empieza en el plan de $29.',
   },
+  {
+    path: '/alternatives/choppity',
+    title: 'Análisis de Choppity',
+    blurb: 'Una hora gratis al mes con su logo, planes por horas desde $24 y la alternativa abierta.',
+  },
+  {
+    path: '/alternatives/getmunch',
+    title: 'GetMunch, ahora Munch Studio',
+    blurb: 'Ya no es solo un clipper: marketing en redes con IA, sin plan gratuito, desde $38/mes anual.',
+  },
 ]
 
 /* Spanish index of the comparison cluster. "alternativas a <tool>" is a live
@@ -2377,9 +2394,9 @@ const alternativasIndex = () => {
     path: '/alternativas',
     lang: 'es',
     facts: [
-      { k: 'Herramientas', v: '8', s: 'OpenShorts y 7 clippers en la nube' },
+      { k: 'Herramientas', v: '10', s: 'OpenShorts y 9 herramientas en la nube' },
       { k: 'Plan de pago más barato', v: '$9,90/mes', s: '2short.ai; OpenShorts Cloud $12 al mes' },
-      { k: 'Código abierto', v: '1 de 8', s: 'Solo OpenShorts se puede autoalojar' },
+      { k: 'Código abierto', v: '1 de 10', s: 'Solo OpenShorts se puede autoalojar' },
       { k: 'Precios comprobados', v: 'Oct 2026', s: 'En la web de precios de cada uno' },
     ],
     title: 'Alternativas a Opus Clip, Vizard y Submagic | OpenShorts',
@@ -2701,6 +2718,8 @@ const RELATED = {
   '/mcp': ['/automate-shorts-api', '/n8n-youtube-shorts-automation', '/youtube-automation'],
   '/automate-shorts-api': ['/mcp', '/n8n-youtube-shorts-automation', '/auto-clip'],
   '/n8n-youtube-shorts-automation': ['/automate-shorts-api', '/auto-clip', '/mcp'],
+  '/alternatives/choppity': ['/alternatives', '/podcast-to-shorts', '/platforms/youtube', '/alternatives/opus-clip'],
+  '/alternatives/getmunch': ['/alternatives', '/platforms', '/alternatives/sendshort', '/alternatives/vidyo-ai'],
 }
 
 /* The heading over the related links, by page type. */
@@ -2789,6 +2808,8 @@ export function relatedFor(page, all) {
     '/self-hosted-ai-clip-maker': 'Docker setup, hardware, your own keys, and the real cost vs credits.',
     '/pricing': 'Free plan, $12 to $59 a month, $0 self-hosted: what a minute buys.',
     '/free-ai-clipping-tools-compared': 'Every free tier side by side: minutes, resolution, who watermarks.',
+    '/alternatives/choppity': 'Choppity reviewed: a free hour a month, hourly plans, the alternative.',
+    '/alternatives/getmunch': 'GetMunch is now Munch Studio: what changed, prices, the alternative.',
   }
   const card = (p) => ({ path: p.path, title: p.h1, blurb: blurb[p.path] || p.description })
   // A page can name its own neighbours: the first three of its list that are
