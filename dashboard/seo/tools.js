@@ -59,6 +59,21 @@ export const TOOLS = [
   },
 ]
 
+/* The clip tool pages (clip-tools.js, pages.js) and the how-to guide, listed on
+ * the hub so every one of them is a described link from /tools. */
+const CLIP_MAKERS = [
+  { path: '/youtube-clip-maker', name: 'YouTube clip maker', blurb: 'Paste a YouTube link, get vertical clips with captions and hooks.' },
+  { path: '/youtube-shorts-maker', name: 'YouTube Shorts maker', blurb: 'Shorts from long videos: length, hooks, captions and posting to your channel.' },
+  { path: '/tiktok-clip-maker', name: 'TikTok clip maker', blurb: 'A long video cut into TikToks, sent to TikTok as drafts.' },
+  { path: '/ai-reel-generator', name: 'AI reel generator', blurb: 'Instagram Reels from a long video, posted straight to Instagram.' },
+  { path: '/twitch-clip-maker', name: 'Twitch clip maker', blurb: 'Twitch VODs clipped in parts, with the facecam kept.' },
+  { path: '/kick-clip-maker', name: 'Kick clip maker', blurb: 'Kick VOD and clip links, with IRL and facecam layouts.' },
+  { path: '/podcast-to-shorts', name: 'Podcast clip maker', blurb: 'Podcast clips with both speakers kept in frame.' },
+  { path: '/sermon-clip-maker', name: 'Sermon clip maker', blurb: 'Clip only the sermon from a service, with the preacher followed.' },
+  { path: '/auto-reframe', name: 'Auto reframe', blurb: '16:9 to 9:16 by tracking the speaker, stacking two, or keeping the screen.' },
+  { path: '/how-to-clip-a-youtube-video', name: 'How to clip a YouTube video', blurb: 'A guide: the Clip button, YouTube Studio, ffmpeg, or AI-cut Shorts.' },
+]
+
 const toolsHub = () => ({
   path: '/tools',
   title: 'Free Tools for YouTube and Short-Form Video | OpenShorts',
@@ -90,6 +105,14 @@ to 500 characters in total.</p>
 device. The video is never uploaded, which is why it has no queue and no daily
 cap. It keeps the whole frame over a blurred copy, crops to fill, or adds black
 bars. It does not follow faces: that is what the clip generator is for.</p>
+
+<h2>AI clip makers by platform</h2>
+<p>When the job is a long video cut into several vertical clips rather than one
+transcript or one converted file, these pages explain how the clip generator
+handles each kind of source and destination.</p>
+<div class="cluster">
+${CLIP_MAKERS.map((t) => `<a href="${t.path}"><strong>${esc(t.name)}</strong><span>${esc(t.blurb)}</span></a>`).join('\n')}
+</div>
 
 <h2>Where the paid product starts</h2>
 <p>If what you want is not one transcript or one converted file but a long video

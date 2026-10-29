@@ -127,6 +127,41 @@ const HERO_FORM = `<form id="seo-hero-form" action="/#app" method="get" style="d
   </form>
   <script>(function(){var f=document.getElementById('seo-hero-form');if(!f)return;f.addEventListener('submit',function(e){e.preventDefault();var u=(f.elements.url.value||'').trim();try{if(u)localStorage.setItem('os_pending_url',u);localStorage.setItem('openshorts_skip_landing','1')}catch(_){}location.hash='#app'})})()</script>`
 
+/* Per-platform links, the same ones and in the same order as WORKS_WITH,
+ * PLATFORMS and SWITCHING in Landing.jsx. */
+const WORKS_WITH = [
+  ['/youtube-clip-maker', 'YouTube'],
+  ['/twitch-clip-maker', 'Twitch'],
+  ['/kick-clip-maker', 'Kick'],
+  ['/tiktok-clip-maker', 'TikTok'],
+  ['/podcast-to-shorts', 'podcasts'],
+]
+
+const PLATFORMS = [
+  ['YouTube clips', 'Paste a YouTube link and get vertical clips back, Shorts for your own channel, or the whole video turned into 9:16 pieces.',
+    [['/youtube-clip-maker', 'YouTube clip maker'], ['/youtube-shorts-maker', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']]],
+  ['TikTok &amp; Reels', 'The same clips, captioned and with a hook, sent to TikTok and Instagram Reels from the dashboard.',
+    [['/tiktok-clip-maker', 'TikTok clip maker'], ['/ai-reel-generator', 'AI reel generator']]],
+  ['Streams', 'Hours-long Twitch and Kick VODs clipped in parts, with the facecam kept and quiet gameplay still handled.',
+    [['/twitch-clip-maker', 'Twitch clip maker'], ['/kick-clip-maker', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']]],
+  ['Podcasts &amp; talks', 'Both podcast hosts kept in frame, only the sermon clipped out of a service, and a speaker who walks the stage tracked.',
+    [['/podcast-to-shorts', 'Podcast clip maker'], ['/sermon-clip-maker', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']]],
+]
+
+const SWITCHING = [
+  ['/alternatives/opus-clip', 'vs Opus Clip'],
+  ['/alternatives/klap', 'vs Klap'],
+  ['/alternatives/vizard', 'vs Vizard'],
+  ['/alternatives/submagic', 'vs Submagic'],
+  ['/free-ai-clipping-tools-compared', 'Free plans compared'],
+  ['/alternatives', 'All alternatives'],
+]
+
+const link = ([href, label]) => `<a style="${S.a}" href="${href}">${label}</a>`
+
+const platformCard = ([title, body, links]) =>
+  `<div style="${S.card}"><h3 style="${S.h3}">${title}</h3><p style="margin:0 0 .6rem;color:oklch(64% 0.012 262);font-size:.9rem;line-height:1.6">${body}</p><p style="margin:0;font-size:.9rem;line-height:1.8">${links.map(([h, l]) => link([h, `${l} &rarr;`])).join('<br>')}</p></div>`
+
 const card = (title, body) =>
   `<div style="${S.card}"><h3 style="${S.h3}">${title}</h3><p style="margin:0;color:oklch(64% 0.012 262);font-size:.9rem;line-height:1.6">${body}</p></div>`
 
@@ -139,6 +174,13 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
   ${HERO_FORM}
   <p style="${S.muted};max-width:44rem">20,000+ accounts created &middot; 13,800+ videos clipped &middot; 3,100+ hours of video processed &middot; 6.1k GitHub stars.</p>
   <p style="${S.muted};max-width:44rem"><strong style="color:oklch(75% 0.11 150)">No credit card required.</strong> Your first video is free up to 60 minutes, then 20 free minutes every month. Paid plans from $12/month without a watermark. Prefer to run it yourself? <a style="${S.a}" href="https://github.com/mutonby/openshorts" rel="noopener">Self-host free on GitHub</a>.</p>
+  <p style="${S.muted};max-width:44rem">Works with links from ${WORKS_WITH.map(link).join(' &middot; ')}.</p>
+</div></section>
+
+<section id="platforms" style="${S.section}"><div style="${S.wrap}">
+  <h2 style="${S.h2}">Made for every platform: YouTube, TikTok, streams and podcasts</h2>
+  <p style="${S.muted};max-width:48rem">One clip generator, tuned to where the video comes from and where the clips are going.</p>
+  <div style="${S.grid}">${PLATFORMS.map(platformCard).join('')}</div>
 </div></section>
 
 <section style="${S.section}"><div style="${S.wrap}">
@@ -153,6 +195,7 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
     ${card('OpenShorts self-hosted &middot; $0', EDITIONS.selfHosted.summary)}
     ${card('OpenShorts Cloud &middot; free tier, then from $12/month', EDITIONS.cloud.summary)}
   </div>
+  <p style="${S.p};margin-top:1.25rem"><a style="${S.a}" href="/pricing">See all plans and limits &rarr;</a></p>
 </div></section>
 
 <section id="features" style="${S.section}"><div style="${S.wrap}">
@@ -170,6 +213,8 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
 <section id="comparison" style="${S.section}"><div style="${S.wrap}">
   <h2 style="${S.h2}">OpenShorts vs Opus Clip, Klap and Vizard</h2>
   <p style="${S.muted};max-width:48rem">Entry pricing checked 5 October 2026. OpenShorts is $0 self-hosted or $12/month hosted without a watermark, billed monthly. 2short.ai starts at $9.90/month, Submagic at $12, Klap at $14 and Vizard at $14.50 a month on yearly billing, Opus Clip at $15/month and Quso (formerly Vidyo.ai) at $19/month yearly. OpenShorts is the only open source and self-hostable option.</p>
+  <h3 style="${S.h3};margin-top:1.5rem">Switching from another tool?</h3>
+  <p style="${S.muted}">${SWITCHING.map(link).join(' &middot; ')}</p>
   <p style="${S.muted}">
     <a style="${S.a}" href="/alternatives/opus-clip">Opus Clip alternative</a> &middot;
     <a style="${S.a}" href="/alternatives/klap">Klap alternative</a> &middot;
@@ -188,13 +233,18 @@ export const LANDING_FALLBACK = `<div id="seo-content" style="background:oklch(1
     <a style="${S.a}" href="/ai-reel-generator">AI reel generator</a> &middot;
     <a style="${S.a}" href="/twitch-clip-maker">Twitch clip maker</a> &middot;
     <a style="${S.a}" href="/kick-clip-maker">Kick clip maker</a> &middot;
+    <a style="${S.a}" href="/auto-reframe">Auto reframe</a> &middot;
+    <a style="${S.a}" href="/sermon-clip-maker">Sermon clip maker</a> &middot;
+    <a style="${S.a}" href="/how-to-clip-a-youtube-video">How to clip a YouTube video</a> &middot;
     <a style="${S.a}" href="/pricing">Pricing</a> &middot;
     <a style="${S.a}" href="/open-source-video-clipper">Open source video clipper</a> &middot;
+    <a style="${S.a}" href="/self-hosted-ai-clip-maker">Self-hosted AI clip maker</a> &middot;
     <a style="${S.a}" href="/open-source-ai-video-generator">Open source AI video generator</a> &middot;
     <a style="${S.a}" href="/podcast-to-shorts">Podcast clips</a> &middot;
     <a style="${S.a}" href="/youtube-to-shorts-converter">YouTube to Shorts converter</a> &middot;
     <a style="${S.a}" href="/how-openshorts-works">How it works</a> &middot;
     <a style="${S.a}" href="/alternatives">All alternatives compared</a> &middot;
+    <a style="${S.a}" href="/free-ai-clipping-tools-compared">Free AI clipping tools compared</a> &middot;
     <a style="${S.a}" href="/alternativas">Alternativas (ES)</a> &middot;
     <a style="${S.a}" href="/opus-clip-pricing">Opus Clip pricing</a> &middot;
     <a style="${S.a}" href="/opus-ai">Opus AI</a> &middot;

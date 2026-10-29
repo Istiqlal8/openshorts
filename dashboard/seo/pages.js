@@ -956,6 +956,10 @@ one side of the table.</p>
 <li>Each segment is reframed for its content: split layout for two-shots, face tracking for single speakers, screencast layout if the episode shares a screen.</li>
 <li>Subtitles are burned in from the word-level transcript, and finished clips post directly to TikTok, Instagram Reels and YouTube Shorts, or come back through the API.</li>
 </ol>
+<p>The same steps work for any long recording of people talking. Church
+services are the closest case to a podcast: one speaker for most of an hour, and
+the <a href="/sermon-clip-maker">sermon clip maker</a> page covers clipping only
+the sermon and keeping a preacher who walks the stage in frame.</p>
 
 <h2>Real podcast clips, next to their source</h2>
 <p>A two-person episode filmed as one wide shot: both hosts stay in frame,
@@ -2692,7 +2696,7 @@ const RELATED = {
   '/open-source-ai-video-generator': ['/ai-reel-generator', '/open-source-video-clipper', '/how-openshorts-works', '/free-ai-clip-generator'],
   '/how-openshorts-works': ['/auto-reframe', '/podcast-to-shorts', '/gta-5-clips', '/youtube-to-shorts-converter'],
   '/gta-5-clips': ['/twitch-clip-maker', '/kick-clip-maker', '/podcast-to-shorts', '/how-openshorts-works', '/auto-clip'],
-  '/podcast-to-shorts': ['/youtube-to-shorts-converter', '/how-openshorts-works', '/youtube-clip-maker', '/auto-clip'],
+  '/podcast-to-shorts': ['/youtube-to-shorts-converter', '/sermon-clip-maker', '/how-openshorts-works', '/youtube-clip-maker', '/auto-clip'],
   '/youtube-to-shorts-converter': ['/how-to-clip-a-youtube-video', '/youtube-shorts-maker', '/podcast-to-shorts', '/how-openshorts-works', '/video-aspect-ratio-converter'],
   '/mcp': ['/automate-shorts-api', '/n8n-youtube-shorts-automation', '/youtube-automation'],
   '/automate-shorts-api': ['/mcp', '/n8n-youtube-shorts-automation', '/auto-clip'],
