@@ -660,6 +660,19 @@ def transcribe_media(media_path):
 
     backend = os.environ.get("TRANSCRIBE_BACKEND", "whisper").strip().lower()
 
+    if backend == "groq":
+        try:
+            from groq_asr import transcribe_with_groq
+            transcript = transcribe_with_groq(media_path)
+            if transcript["segments"]:
+                print(f"🎙️ [ASR] groq ok: lang={transcript['language']} "
+                      f"segments={len(transcript['segments'])}")
+                return transcript
+            print("⚠️ [ASR] groq returned no segments — falling back to whisper")
+        except Exception as e:
+            print(f"⚠️ [ASR] groq failed ({type(e).__name__}: {e}) — "
+                  f"falling back to whisper")
+
     if backend == "parakeet":
         try:
             transcript = _transcribe_with_parakeet(media_path)

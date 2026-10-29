@@ -9,6 +9,10 @@ services:
       - WHISPER_MODEL=small
       - WHISPER_DEVICE=cpu
       - WHISPER_COMPUTE=int8
+      # Transcription on Groq's hosted whisper; local whisper is the fallback.
+      - TRANSCRIBE_BACKEND=groq
+      - GROQ_LANGUAGE=id
+      - GROQ_API_KEY=${GROQ_API_KEY}
       # The mini server also runs production ERP: one clip job at a time.
       - MAX_CONCURRENT_JOBS=1
     volumes:
