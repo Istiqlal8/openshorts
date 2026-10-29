@@ -31,8 +31,8 @@ The public `/gta-5-clips` page states the silent-footage thresholds and ceiling
 
 ## Site navigation (`seo/nav.js`)
 
-One header for the whole site: `seo/nav.js` holds the groups (clip tools,
-compare, free tools), the top links (pricing, open source, GitHub), "Log in"
+One header for the whole site: `seo/nav.js` holds the groups (platforms,
+use cases, compare, free tools), the top links (pricing, open source, GitHub), "Log in"
 (`/#app?login=1`, App.jsx opens the sign-in dialog) and the CTA (`/#app`). The
 same `renderNav()` markup is used by `render.js` (every static page, labels
 translated for `lang: 'es'`), by the homepage fallback and by the React landing
@@ -40,6 +40,21 @@ translated for `lang: 'es'`), by the homepage fallback and by the React landing
 stored session). Every item is a real `<a href>` in the static HTML; dropdowns
 are `<details>` and the mobile menu a checkbox, so nothing needs JavaScript.
 Add or rename a nav item there, never in one surface.
+
+Topic clusters: `seo/hub-pages.js` builds the hubs `/platforms`, `/use-cases`
+and `/how-to`. Pages created inside a cluster live under its path
+(`/platforms/youtube`, `/use-cases/sermons`, `/how-to/clip-a-youtube-video`);
+pages that already ranked on a flat URL (`/podcast-to-shorts`, `/gta-5-clips`,
+`/auto-clip`, `/how-openshorts-works`, ...) keep it and only point their
+breadcrumb at the hub. Never move an established URL; a moved page gets a 301
+in `nginx.conf` for the clean path, `.html` and the trailing slash. Hub cards,
+footer entries marked `optional` and llms.txt key pages render only when the
+page is built, so they can name a page another module adds.
+
+Pricing is the plan table on the homepage: every "pricing" link is `/#pricing`
+(`Landing.jsx` scrolls to it once the billing-gated section renders). There is
+no pricing page; nginx sends a bare `/pricing` to `/#pricing` and
+`/pricing?<query>` to the plan picker at `/#/pricing?<query>`.
 
 Routing: `/` always renders the landing; the app is `#app` / `#app?…`. Do not
 reintroduce a "returning visitor goes straight to the app" shortcut: the static

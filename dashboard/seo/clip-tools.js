@@ -1,7 +1,7 @@
 /* Clip tool pages: one per source or destination the clip generator serves
- * (/youtube-clip-maker, /youtube-shorts-maker, /tiktok-clip-maker,
- * /ai-reel-generator, /twitch-clip-maker, /kick-clip-maker, /auto-reframe,
- * /sermon-clip-maker).
+ * (/platforms/youtube, /platforms/youtube-shorts, /platforms/tiktok,
+ * /platforms/instagram-reels, /platforms/twitch, /platforms/kick, /auto-reframe,
+ * /use-cases/sermons).
  *
  * Each page opens with the paste-a-link widget right under the H1 (static
  * HTML here, behaviour in dashboard/tools/paste-link.js), the same hand-off
@@ -160,7 +160,7 @@ const common = (path, extra) => ({
 const SITES_LIST = 'YouTube, Vimeo, TikTok, X (Twitter), Twitch, Kick, Facebook, Instagram, Dailymotion, Reddit and Streamable'
 
 /* ------------------------------------------------------------------------ */
-/* /youtube-clip-maker                                                       */
+/* /platforms/youtube                                                       */
 /* ------------------------------------------------------------------------ */
 
 const ytClipSteps = [
@@ -182,18 +182,18 @@ const ytClipFaq = [
   { q: 'How is it different from Opus Clip or Vizard?', a: `All three take a YouTube link and return vertical clips. Opus Clip and Vizard are closed cloud products with free plans of 60 credits a month (checked ${longDate(COMPETITORS['opus-clip'].checked)}); OpenShorts is open source and can be self-hosted, and its hosted plans are billed monthly from $${CLOUD.lowPrice}. Vizard has the more complete hand-editing timeline, and Opus Clip the larger caption-style library.` },
 ]
 
-const youtubeClipMaker = () => common('/youtube-clip-maker', {
+const youtubeClipMaker = () => common('/platforms/youtube', {
   title: 'YouTube Clip Maker: Paste a Link, Get AI Clips | OpenShorts',
   description: `Clip a YouTube video from its link: AI picks the 15-60 s moments, reframes them to 9:16 and adds captions. First video free up to ${FIRST_VIDEO_MINUTES} min, watermarked.`,
   h1: 'YouTube clip maker: clip a YouTube video from its link',
-  breadcrumb: [{ name: 'YouTube clip maker' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'YouTube clip maker' }],
   tool: { entry: 'tool-paste-link', html: widget('https://www.youtube.com/watch?v=...', 'YouTube video link') },
   cta: {
     label: 'Clip a video',
     title: 'One link in, a set of vertical clips out',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/how-to-clip-a-youtube-video', '/youtube-shorts-maker', '/auto-reframe', '/tiktok-clip-maker', '/alternatives/opus-clip'],
+  related: ['/how-to/clip-a-youtube-video', '/platforms/youtube-shorts', '/auto-reframe', '/platforms/tiktok', '/alternatives/opus-clip'],
   tldr: [
     'Paste the link of a 40-minute interview and OpenShorts reads all of it: a transcript with a timestamp on every word, a map of the camera cuts, and a score for each 90-second stretch. The ten best stretches go to a second pass that cuts the clips, and for a source that long it is asked for 6 to 12 of them, each 15 to 60 seconds, each opening on a sentence rather than halfway through one.',
     'Every clip comes back vertical, captioned and with a hook line over the first seconds, ready to post as a Short, a TikTok or a Reel. You never download the YouTube video or upload it again.',
@@ -227,7 +227,7 @@ keep like any other export and can upload anywhere. When people search for a
 "YouTube video clip converter" this is usually what they mean: turn the long
 horizontal upload into short vertical pieces, not save a timestamp.</p>
 <p>If you only need one moment and would rather cut it by hand, <a
-href="/how-to-clip-a-youtube-video">how to clip a YouTube video</a> walks
+href="/how-to/clip-a-youtube-video">how to clip a YouTube video</a> walks
 through the four free ways: the Clip button, YouTube Studio, ffmpeg, and an AI
 clipper for Shorts.</p>
 
@@ -247,9 +247,9 @@ instead. Uploads work on every plan, the free one included.</p>
 <h2>Works with links from other sites too</h2>
 <p>The same box takes public video links from ${SITES_LIST}. Some of those have
 their own page here because they behave differently
-(<a href="/twitch-clip-maker">Twitch</a> and <a href="/kick-clip-maker">Kick</a>
-VODs run for hours, <a href="/tiktok-clip-maker">TikTok</a> and
-<a href="/ai-reel-generator">Instagram</a> are usually destinations rather than
+(<a href="/platforms/twitch">Twitch</a> and <a href="/platforms/kick">Kick</a>
+VODs run for hours, <a href="/platforms/tiktok">TikTok</a> and
+<a href="/platforms/instagram-reels">Instagram</a> are usually destinations rather than
 sources). The rest work exactly like a YouTube link:</p>
 <ul>
 <li><strong>Vimeo:</strong> public videos and links to a single video in a showcase. Password-protected Vimeo links cannot be fetched; download the file and upload it.</li>
@@ -316,15 +316,15 @@ ${sources([
 `,
   faq: ytClipFaq,
   extraNodes: [
-    howToNode('/youtube-clip-maker', 'How to clip a YouTube video into vertical clips with AI',
+    howToNode('/platforms/youtube', 'How to clip a YouTube video into vertical clips with AI',
       'Turn a YouTube video into 9:16 clips with captions by pasting its link into OpenShorts.', ytClipSteps),
-    appNode('/youtube-clip-maker', 'OpenShorts YouTube clip maker',
+    appNode('/platforms/youtube', 'OpenShorts YouTube clip maker',
       'Paste a YouTube link and get vertical 9:16 clips with captions and hooks, picked by AI from the whole video.'),
   ],
 })
 
 /* ------------------------------------------------------------------------ */
-/* /youtube-shorts-maker                                                     */
+/* /platforms/youtube-shorts                                                     */
 /* ------------------------------------------------------------------------ */
 
 const UGC_PRICE = (COMPARISON_ROWS.find((r) => r.feature.startsWith('AI UGC video'))?.os.match(/\$[\d.]+/) || [''])[0]
@@ -348,18 +348,18 @@ const shortsFaq = [
   { q: 'How does it compare with Opus Clip for Shorts?', a: `Both cut Shorts from long videos and post them to YouTube. Opus Clip has a free plan of 60 credits a month with a watermark and paid plans from ${COMPETITORS['opus-clip'].entryPrice} (checked ${longDate(COMPETITORS['opus-clip'].checked)}), and a larger caption-style library. OpenShorts is open source and self-hostable, and hosted from $${CLOUD.lowPrice}/month.` },
 ]
 
-const youtubeShortsMaker = () => common('/youtube-shorts-maker', {
+const youtubeShortsMaker = () => common('/platforms/youtube-shorts', {
   title: 'YouTube Shorts Maker: AI Shorts From Long Videos, Free',
   description: `Make YouTube Shorts from any long video: AI picks the moments, adds hooks and captions, and posts to your channel. First video free up to ${FIRST_VIDEO_MINUTES} min, watermarked.`,
   h1: 'YouTube Shorts maker: AI Shorts from your long videos',
-  breadcrumb: [{ name: 'YouTube Shorts maker' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'YouTube Shorts maker' }],
   tool: { entry: 'tool-paste-link', html: widget('Paste a link to the long video', 'Long video link') },
   cta: {
     label: 'Make Shorts',
     title: 'Your next week of Shorts is already in last week\'s video',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-clip-maker', '/ai-reel-generator', '/how-to-clip-a-youtube-video', '/tiktok-clip-maker', '/opus-clip-free-alternative'],
+  related: ['/platforms/youtube', '/platforms/instagram-reels', '/how-to/clip-a-youtube-video', '/platforms/tiktok', '/opus-clip-free-alternative'],
   tldr: [
     'A one-hour podcast episode is, as far as YouTube Shorts are concerned, a quarry. OpenShorts reads the whole of it, ranks every stretch for how well it would play to someone who has never heard of you, and cuts the best 6 to 12 into vertical Shorts with captions, a hook over the opening seconds and a title written for the Shorts feed.',
     'Then it can post them to your channel for you, one a day if you like, so the long video you already made keeps feeding the Shorts shelf for a week or more.',
@@ -423,7 +423,7 @@ vertical clips without downloading anything. This page is about running a
 Shorts shelf: deciding the length, the hook, the captions and the titles, and
 posting on a schedule. Same pipeline underneath; use whichever question you
 came with. And if all you want is a single moment trimmed by hand, <a
-href="/how-to-clip-a-youtube-video">how to clip a YouTube video</a> compares the
+href="/how-to/clip-a-youtube-video">how to clip a YouTube video</a> compares the
 free manual routes with the AI one.</p>
 
 <h2>Works with links from other sites too</h2>
@@ -464,15 +464,15 @@ ${sources([
 `,
   faq: shortsFaq,
   extraNodes: [
-    howToNode('/youtube-shorts-maker', 'How to make YouTube Shorts from a long video with AI',
+    howToNode('/platforms/youtube-shorts', 'How to make YouTube Shorts from a long video with AI',
       'Cut a long video into vertical YouTube Shorts with captions, hooks and titles, then post them to your channel.', shortsSteps),
-    appNode('/youtube-shorts-maker', 'OpenShorts YouTube Shorts maker',
+    appNode('/platforms/youtube-shorts', 'OpenShorts YouTube Shorts maker',
       'AI YouTube Shorts maker: cuts long videos into vertical Shorts with captions, hooks and titles and posts them to YouTube.'),
   ],
 })
 
 /* ------------------------------------------------------------------------ */
-/* /tiktok-clip-maker                                                        */
+/* /platforms/tiktok                                                        */
 /* ------------------------------------------------------------------------ */
 
 const tiktokSteps = [
@@ -494,18 +494,18 @@ const tiktokFaq = [
   { q: 'How does it compare with Klap or Opus Clip for TikTok?', a: `All three cut long videos into TikToks. Klap is the fastest path from a link to a first clip but gives one free video and bills clips (from ${COMPETITORS.klap.entryPrice}); Opus Clip has a watermarked free plan of 60 credits a month and paid plans from ${COMPETITORS['opus-clip'].entryPrice}. Both checked ${longDate(COMPETITORS.klap.checked)}. OpenShorts is open source, self-hostable, and hosted from $${CLOUD.lowPrice}/month billed monthly.` },
 ]
 
-const tiktokClipMaker = () => common('/tiktok-clip-maker', {
+const tiktokClipMaker = () => common('/platforms/tiktok', {
   title: 'TikTok Clip Maker: Long Video to TikToks With AI',
   description: `Turn a long video into TikTok clips with AI: moments picked, reframed to 9:16, captioned and sent to TikTok. First video free up to ${FIRST_VIDEO_MINUTES} min, then watermarked.`,
   h1: 'TikTok clip maker: turn long videos into TikToks',
-  breadcrumb: [{ name: 'TikTok clip maker' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'TikTok clip maker' }],
   tool: { entry: 'tool-paste-link', html: widget('Paste a YouTube or other video link', 'Video link to turn into TikToks') },
   cta: {
     label: 'Make TikToks',
     title: 'From one long video to a week of TikTok drafts',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/ai-reel-generator', '/youtube-shorts-maker', '/twitch-clip-maker', '/alternatives/klap'],
+  related: ['/platforms/instagram-reels', '/platforms/youtube-shorts', '/platforms/twitch', '/alternatives/klap'],
   tldr: [
     'Take a 30-minute YouTube video that did well. Pasted here, it comes back as a stack of vertical clips, 6 to 12 of them for a source that long, each 15 to 60 seconds, captioned for the muted autoplay most TikToks start in and opened by a hook line written from what is said in that clip.',
     'Send them to your TikTok account from the dashboard and they wait in your TikTok inbox as drafts, where you add the sound, the hashtags and the caption the way TikTok rewards. Or download the files and post them however you like.',
@@ -603,15 +603,15 @@ ${sources([
 `,
   faq: tiktokFaq,
   extraNodes: [
-    howToNode('/tiktok-clip-maker', 'How to turn a long video into TikTok clips with AI',
+    howToNode('/platforms/tiktok', 'How to turn a long video into TikTok clips with AI',
       'Cut a long video, from a YouTube link or an upload, into vertical TikTok clips with captions and hooks.', tiktokSteps),
-    appNode('/tiktok-clip-maker', 'OpenShorts TikTok clip maker',
+    appNode('/platforms/tiktok', 'OpenShorts TikTok clip maker',
       'AI TikTok clip maker: turns long videos into vertical TikToks with captions and hooks and sends them to TikTok as drafts.'),
   ],
 })
 
 /* ------------------------------------------------------------------------ */
-/* /ai-reel-generator                                                        */
+/* /platforms/instagram-reels                                                        */
 /* ------------------------------------------------------------------------ */
 
 const reelSteps = [
@@ -633,18 +633,18 @@ const reelFaq = [
   { q: 'How does it compare with Opus Clip, Vizard or Quso?', a: `All of them cut long videos into vertical clips. Their free plans, checked ${longDate(COMPETITORS.vizard.checked)}: Opus Clip and Vizard 60 credits a month with a watermark, Quso 75 credits at 720p. Quso adds a content planner and analytics we do not have; Vizard has the stronger hand-editing timeline. OpenShorts is open source, self-hostable and hosted from $${CLOUD.lowPrice}/month billed monthly.` },
 ]
 
-const aiReelGenerator = () => common('/ai-reel-generator', {
+const aiReelGenerator = () => common('/platforms/instagram-reels', {
   title: 'AI Reel Generator: Turn Long Videos Into Reels | OpenShorts',
   description: `AI reel maker for Instagram and Facebook: turns a long video into captioned 9:16 Reels, posted to Instagram. First video free up to ${FIRST_VIDEO_MINUTES} min, watermarked.`,
   h1: 'AI reel generator: turn long videos into Instagram and Facebook Reels',
-  breadcrumb: [{ name: 'AI reel generator' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'AI reel generator' }],
   tool: { entry: 'tool-paste-link', html: widget('Paste a video link (YouTube, Facebook, Instagram...)', 'Video link to turn into Reels') },
   cta: {
     label: 'Make Reels',
     title: 'Reels cut from what you already recorded',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/tiktok-clip-maker', '/youtube-shorts-maker', '/sermon-clip-maker', '/alternatives/vidyo-ai'],
+  related: ['/platforms/tiktok', '/platforms/youtube-shorts', '/use-cases/sermons', '/alternatives/vidyo-ai'],
   tldr: [
     'A one-hour webinar, recorded on Zoom and sitting in a folder, holds a month of Reels for most businesses. Upload it here and the AI reads all of it, finds the 6 to 12 passages that make sense on their own, and returns each one as a vertical Reel with captions, a hook over the first seconds and a description written for Instagram.',
     'Publish them to Instagram as Reels from the same screen, one a day if you schedule a week, or download them for Facebook. Nothing is generated from stock footage: every Reel is you, or your guest, saying the thing.',
@@ -751,15 +751,15 @@ ${sources([
 `,
   faq: reelFaq,
   extraNodes: [
-    howToNode('/ai-reel-generator', 'How to turn a long video into Instagram Reels with AI',
+    howToNode('/platforms/instagram-reels', 'How to turn a long video into Instagram Reels with AI',
       'Cut a long recording into vertical Reels with captions and hooks, then publish them to Instagram.', reelSteps),
-    appNode('/ai-reel-generator', 'OpenShorts AI reel generator',
+    appNode('/platforms/instagram-reels', 'OpenShorts AI reel generator',
       'AI reel generator: turns long videos into captioned 9:16 Reels for Instagram and Facebook, and publishes them to Instagram.'),
   ],
 })
 
 /* ------------------------------------------------------------------------ */
-/* /twitch-clip-maker                                                        */
+/* /platforms/twitch                                                        */
 /* ------------------------------------------------------------------------ */
 
 const PLAN_MIN = (name) => PRICE_MODELS.openshorts.plans.find((p) => p.name === name)
@@ -783,18 +783,18 @@ const twitchFaq = [
   { q: 'How does it compare with Opus Clip or Klap for Twitch?', a: `Both bill in ways that hurt on long streams: Opus Clip one credit per imported minute, from ${COMPETITORS['opus-clip'].entryPrice}, and Klap per clip, from ${COMPETITORS.klap.entryPrice}, with a speech-reliant picker (checked ${longDate(COMPETITORS.klap.checked)}). OpenShorts Cloud also bills source minutes, but lets you clip just a stretch, and the self-hosted edition has no meter at all.` },
 ]
 
-const twitchClipMaker = () => common('/twitch-clip-maker', {
+const twitchClipMaker = () => common('/platforms/twitch', {
   title: 'Twitch Clip Maker: AI Clips From Streams and VODs',
   description: `Twitch clip maker and AI stream clipper: paste a VOD, get 9:16 clips with your facecam kept and captions. First video free up to ${FIRST_VIDEO_MINUTES} min, then watermarked.`,
   h1: 'Twitch clip maker: AI clips from your streams and VODs',
-  breadcrumb: [{ name: 'Twitch clip maker' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'Twitch clip maker' }],
   tool: { entry: 'tool-paste-link', html: widget('https://www.twitch.tv/videos/...', 'Twitch VOD link') },
   cta: {
     label: 'Clip a stream',
     title: 'Last night\'s stream, as a week of vertical clips',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/kick-clip-maker', '/tiktok-clip-maker', '/auto-reframe', '/alternatives/klap'],
+  related: ['/platforms/kick', '/platforms/tiktok', '/auto-reframe', '/alternatives/klap'],
   tldr: [
     'A three-hour Twitch stream is mostly waiting, travelling and loading screens, with a handful of moments worth posting. Paste the VOD link and OpenShorts reads everything you said across those three hours, picks the passages that stand alone, and cuts each one into a vertical clip: gameplay across the top, your facecam enlarged underneath, captions burned in.',
     'One job returns the best 6 to 12 moments of what it is given. For a long stream, clip it in parts (one job per hour, or just the segment you know was good) and you get more candidates and spend fewer minutes.',
@@ -907,15 +907,15 @@ ${sources([
 `,
   faq: twitchFaq,
   extraNodes: [
-    howToNode('/twitch-clip-maker', 'How to turn a Twitch VOD into vertical clips with AI',
+    howToNode('/platforms/twitch', 'How to turn a Twitch VOD into vertical clips with AI',
       'Paste a Twitch past broadcast and get 9:16 clips with the facecam kept, captions and hooks, ready for TikTok, Shorts and Reels.', twitchSteps),
-    appNode('/twitch-clip-maker', 'OpenShorts Twitch clip maker',
+    appNode('/platforms/twitch', 'OpenShorts Twitch clip maker',
       'AI stream clipper for Twitch: turns VODs into vertical clips with the facecam kept and captions burned in.'),
   ],
 })
 
 /* ------------------------------------------------------------------------ */
-/* /kick-clip-maker                                                          */
+/* /platforms/kick                                                          */
 /* ------------------------------------------------------------------------ */
 
 // Both speeds are quoted from the edition summaries in data.js, so they cannot
@@ -944,18 +944,18 @@ const kickFaq = [
   { q: 'How does it compare with Opus Clip or Klap for Kick?', a: `Opus Clip bills a credit per imported minute, from ${COMPETITORS['opus-clip'].entryPrice}; Klap bills clips, from ${COMPETITORS.klap.entryPrice}, and leans on speech detection (both checked ${longDate(COMPETITORS.klap.checked)}). OpenShorts is open source and self-hostable with no meter, and hosted from $${CLOUD.lowPrice}/month.` },
 ]
 
-const kickClipMaker = () => common('/kick-clip-maker', {
+const kickClipMaker = () => common('/platforms/kick', {
   title: 'Kick Clip Maker: Turn Kick Streams Into Viral Clips',
   description: `Turn Kick streams and VODs into vertical clips with AI: moments picked, facecam kept, captions added. First video free up to ${FIRST_VIDEO_MINUTES} min, then watermarked.`,
   h1: 'Kick clip maker: turn Kick streams into clips',
-  breadcrumb: [{ name: 'Kick clip maker' }],
+  breadcrumb: [{ name: 'Platforms', path: '/platforms' }, { name: 'Kick clip maker' }],
   tool: { entry: 'tool-paste-link', html: widget('https://kick.com/<channel>/videos/...', 'Kick VOD or clip link') },
   cta: {
     label: 'Clip a Kick stream',
     title: 'Paste the VOD, get the clips',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/twitch-clip-maker', '/tiktok-clip-maker', '/youtube-shorts-maker', '/alternatives/opus-clip'],
+  related: ['/platforms/twitch', '/platforms/tiktok', '/platforms/youtube-shorts', '/alternatives/opus-clip'],
   tldr: [
     'Kick clips are how a Kick stream travels: the twenty seconds of a long broadcast that make sense to someone scrolling TikTok who has never heard of the streamer. Paste the link of a Kick VOD and OpenShorts listens to the whole stream, ranks every stretch for how well it stands alone, and cuts the best into vertical clips with captions and a hook, facecam kept.',
     'It works the same whether you are the streamer, their editor or part of a clipping programme they run. What it will not do is decide for you whether you have permission: that part is yours.',
@@ -993,7 +993,7 @@ on the seam between them where they cover nobody.</p>
 <h3>Gaming with a facecam</h3>
 <p>The webcam box in the corner is found by its geometry (small, off centre,
 still between samples) and the clip renders gameplay full width on top and
-the facecam enlarged below. The <a href="/twitch-clip-maker">Twitch clip
+the facecam enlarged below. The <a href="/platforms/twitch">Twitch clip
 maker</a> page covers that layout in more detail, along with what happens on
 gameplay with no commentary.</p>
 
@@ -1054,9 +1054,9 @@ ${sources([
 `,
   faq: kickFaq,
   extraNodes: [
-    howToNode('/kick-clip-maker', 'How to turn a Kick stream into vertical clips with AI',
+    howToNode('/platforms/kick', 'How to turn a Kick stream into vertical clips with AI',
       'Paste a Kick VOD or clip link and get 9:16 clips with captions and hooks for TikTok, YouTube Shorts and Instagram Reels.', kickSteps),
-    appNode('/kick-clip-maker', 'OpenShorts Kick clip maker',
+    appNode('/platforms/kick', 'OpenShorts Kick clip maker',
       'AI clip maker for Kick streams: turns Kick VODs into vertical clips with captions, hooks and the facecam kept.'),
   ],
 })
@@ -1088,14 +1088,14 @@ const autoReframe = () => common('/auto-reframe', {
   title: 'Auto Reframe Video to 9:16 With AI Speaker Tracking',
   description: `Auto reframe horizontal video to 9:16: AI tracks the speaker, stacks two people and keeps screens readable. First video free up to ${FIRST_VIDEO_MINUTES} min, watermarked.`,
   h1: 'Auto reframe: horizontal to vertical video with AI speaker tracking',
-  breadcrumb: [{ name: 'Auto reframe' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'Auto reframe' }],
   tool: { entry: 'tool-paste-link', html: widget('Paste a link to a horizontal video', 'Link to the video to reframe') },
   cta: {
     label: 'Reframe a video',
     title: 'Vertical clips that keep the person in the frame',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-clip-maker', '/sermon-clip-maker', '/twitch-clip-maker', '/ai-reel-generator', '/alternatives/2short'],
+  related: ['/platforms/youtube', '/use-cases/sermons', '/platforms/twitch', '/platforms/instagram-reels', '/alternatives/2short'],
   tldr: [
     'A 16:9 frame is 1.78 times wider than it is tall; a 9:16 one is 0.56. Converting landscape to portrait throws away about two thirds of the width, and the only question is which two thirds. A static crop answers once for the whole video. Auto reframe answers scene by scene, and here it answers with more than one shape: a tracked crop for one speaker, two stacked halves for two, a full-width screen with the presenter under it.',
     'Paste a long horizontal video and you get vertical clips back with the framing already decided, plus an editor to overrule it on the scenes where it chose wrong.',
@@ -1118,7 +1118,7 @@ position can do it. Auto reframe does the looking. The difference shows up
 most on exactly the footage people most want to clip, interviews and
 podcasts, where a fixed centre crop either cuts the guest out or shows an
 empty chair. Church services are the other common case: a preacher who walks
-the stage through a whole sermon, which the <a href="/sermon-clip-maker">sermon
+the stage through a whole sermon, which the <a href="/use-cases/sermons">sermon
 clip maker</a> handles with the same tracking.</p>
 ${demoBlock('split')}
 
@@ -1222,7 +1222,7 @@ ${sources([
 })
 
 /* ------------------------------------------------------------------------ */
-/* /sermon-clip-maker                                                        */
+/* /use-cases/sermons                                                        */
 /* ------------------------------------------------------------------------ */
 
 const sermonSteps = [
@@ -1245,18 +1245,18 @@ const sermonFaq = [
   { q: 'How does it compare with Opus Clip?', a: `Opus Clip also cuts sermons into clips. Its free plan is 60 credits a month with a watermark and it bills one credit per imported minute, from ${COMPETITORS['opus-clip'].entryPrice} (checked ${longDate(COMPETITORS['opus-clip'].checked)}), so a 90-minute service uses 90 credits unless you trim it first. OpenShorts lets you clip only the sermon, and is open source and self-hostable.` },
 ]
 
-const sermonClipMaker = () => common('/sermon-clip-maker', {
+const sermonClipMaker = () => common('/use-cases/sermons', {
   title: 'Sermon Clip Maker: Turn Church Services Into Shorts',
   description: `Turn Sunday's sermon into captioned vertical clips for Shorts, Reels and TikTok that follow the preacher. First video free up to ${FIRST_VIDEO_MINUTES} min, watermarked.`,
   h1: 'Sermon clip maker: turn church services into Shorts and Reels',
-  breadcrumb: [{ name: 'Sermon clip maker' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'Sermon clip maker' }],
   tool: { entry: 'tool-paste-link', html: widget('Paste the YouTube or Facebook Live replay link', 'Service replay link') },
   cta: {
     label: 'Clip this Sunday',
     title: 'One sermon, a week of clips',
     body: `Free plan: ${PRICE_LINE}`,
   },
-  related: ['/youtube-clip-maker', '/ai-reel-generator', '/youtube-shorts-maker', '/alternatives/vizard'],
+  related: ['/platforms/youtube', '/platforms/instagram-reels', '/platforms/youtube-shorts', '/alternatives/vizard'],
   tldr: [
     'A Sunday service streamed to YouTube or Facebook is often 90 minutes: worship, announcements, a 40-minute sermon, prayer. Mark where the sermon starts and ends, paste the replay link, and OpenShorts reads the message word by word and cuts the 6 to 12 passages that hold up on their own into vertical clips, with captions and the preacher kept in frame as they move.',
     'That is a clip a day until next Sunday, made in the time it takes the replay to process, by whoever runs the church\'s social accounts, without an editor.',
@@ -1380,9 +1380,9 @@ ${sources([
 `,
   faq: sermonFaq,
   extraNodes: [
-    howToNode('/sermon-clip-maker', 'How to turn a sermon into short vertical clips with AI',
+    howToNode('/use-cases/sermons', 'How to turn a sermon into short vertical clips with AI',
       'Cut the sermon from a church service replay into captioned 9:16 clips for YouTube Shorts, Instagram Reels and TikTok.', sermonSteps),
-    appNode('/sermon-clip-maker', 'OpenShorts sermon clip maker',
+    appNode('/use-cases/sermons', 'OpenShorts sermon clip maker',
       'AI sermon clip maker: turns church service replays into captioned vertical clips that follow the preacher.'),
   ],
 })

@@ -62,16 +62,16 @@ export const TOOLS = [
 /* The clip tool pages (clip-tools.js, pages.js) and the how-to guide, listed on
  * the hub so every one of them is a described link from /tools. */
 const CLIP_MAKERS = [
-  { path: '/youtube-clip-maker', name: 'YouTube clip maker', blurb: 'Paste a YouTube link, get vertical clips with captions and hooks.' },
-  { path: '/youtube-shorts-maker', name: 'YouTube Shorts maker', blurb: 'Shorts from long videos: length, hooks, captions and posting to your channel.' },
-  { path: '/tiktok-clip-maker', name: 'TikTok clip maker', blurb: 'A long video cut into TikToks, sent to TikTok as drafts.' },
-  { path: '/ai-reel-generator', name: 'AI reel generator', blurb: 'Instagram Reels from a long video, posted straight to Instagram.' },
-  { path: '/twitch-clip-maker', name: 'Twitch clip maker', blurb: 'Twitch VODs clipped in parts, with the facecam kept.' },
-  { path: '/kick-clip-maker', name: 'Kick clip maker', blurb: 'Kick VOD and clip links, with IRL and facecam layouts.' },
+  { path: '/platforms/youtube', name: 'YouTube clip maker', blurb: 'Paste a YouTube link, get vertical clips with captions and hooks.' },
+  { path: '/platforms/youtube-shorts', name: 'YouTube Shorts maker', blurb: 'Shorts from long videos: length, hooks, captions and posting to your channel.' },
+  { path: '/platforms/tiktok', name: 'TikTok clip maker', blurb: 'A long video cut into TikToks, sent to TikTok as drafts.' },
+  { path: '/platforms/instagram-reels', name: 'AI reel generator', blurb: 'Instagram Reels from a long video, posted straight to Instagram.' },
+  { path: '/platforms/twitch', name: 'Twitch clip maker', blurb: 'Twitch VODs clipped in parts, with the facecam kept.' },
+  { path: '/platforms/kick', name: 'Kick clip maker', blurb: 'Kick VOD and clip links, with IRL and facecam layouts.' },
   { path: '/podcast-to-shorts', name: 'Podcast clip maker', blurb: 'Podcast clips with both speakers kept in frame.' },
-  { path: '/sermon-clip-maker', name: 'Sermon clip maker', blurb: 'Clip only the sermon from a service, with the preacher followed.' },
+  { path: '/use-cases/sermons', name: 'Sermon clip maker', blurb: 'Clip only the sermon from a service, with the preacher followed.' },
   { path: '/auto-reframe', name: 'Auto reframe', blurb: '16:9 to 9:16 by tracking the speaker, stacking two, or keeping the screen.' },
-  { path: '/how-to-clip-a-youtube-video', name: 'How to clip a YouTube video', blurb: 'A guide: the Clip button, YouTube Studio, ffmpeg, or AI-cut Shorts.' },
+  { path: '/how-to/clip-a-youtube-video', name: 'How to clip a YouTube video', blurb: 'A guide: the Clip button, YouTube Studio, ffmpeg, or AI-cut Shorts.' },
 ]
 
 const toolsHub = () => ({

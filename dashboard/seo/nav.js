@@ -27,19 +27,30 @@ export const LOGIN_HREF = '/#app?login=1'
 
 export const NAV_GROUPS = [
   {
-    id: 'clip',
-    label: { en: 'Clip tools', es: 'Crear clips' },
+    id: 'platforms',
+    label: { en: 'Platforms', es: 'Plataformas' },
     items: [
-      { href: '/youtube-clip-maker', label: 'YouTube clip maker' },
-      { href: '/youtube-shorts-maker', label: 'YouTube Shorts maker' },
-      { href: '/tiktok-clip-maker', label: 'TikTok clip maker' },
-      { href: '/ai-reel-generator', label: 'AI reel generator', sub: 'Instagram & Facebook' },
+      { href: '/platforms', label: { en: 'All platforms', es: 'Todas las plataformas' } },
+      { href: '/platforms/youtube', label: 'YouTube clip maker' },
+      { href: '/platforms/youtube-shorts', label: 'YouTube Shorts maker' },
+      { href: '/platforms/tiktok', label: 'TikTok clip maker' },
+      { href: '/platforms/instagram-reels', label: 'AI reel generator', sub: 'Instagram & Facebook' },
+      { href: '/platforms/twitch', label: 'Twitch clip maker' },
+      { href: '/platforms/kick', label: 'Kick clip maker' },
+    ],
+  },
+  {
+    id: 'use-cases',
+    label: { en: 'Use cases', es: 'Casos de uso' },
+    items: [
+      { href: '/use-cases', label: { en: 'All use cases', es: 'Todos los casos de uso' } },
       { href: '/podcast-to-shorts', label: 'Podcast clip maker' },
-      { href: '/twitch-clip-maker', label: 'Twitch clip maker' },
-      { href: '/kick-clip-maker', label: 'Kick clip maker' },
-      { href: '/sermon-clip-maker', label: 'Sermon clip maker' },
+      { href: '/use-cases/sermons', label: 'Sermon clip maker' },
+      { href: '/gta-5-clips', label: 'GTA 5 clips', sub: { en: 'Gaming', es: 'Videojuegos' } },
       { href: '/auto-reframe', label: 'Auto reframe 9:16' },
-      { href: '/how-to-clip-a-youtube-video', label: 'How to clip a YouTube video', sub: { en: 'Guide', es: 'Guía' } },
+      { href: '/auto-clip', label: 'Auto clip', sub: 'Autopilot' },
+      { href: '/youtube-automation', label: 'YouTube automation' },
+      { href: '/how-to', label: { en: 'How-to guides', es: 'Guías' }, sub: { en: 'Clip, self-host, automate', es: 'Recortar, autoalojar, automatizar' } },
     ],
   },
   {
@@ -70,8 +81,11 @@ export const NAV_GROUPS = [
   },
 ]
 
+/* Pricing is the plan table on the homepage (#pricing in Landing.jsx), not a
+ * page of its own: /pricing redirects there (nginx.conf). The plan picker and
+ * checkout stay at the hash route #/pricing?plan=..., a different thing. */
 export const NAV_LINKS = [
-  { href: '/pricing', label: { en: 'Pricing', es: 'Precios' } },
+  { href: '/#pricing', label: { en: 'Pricing', es: 'Precios' } },
   { href: '/self-hosted-ai-clip-maker', label: { en: 'Open source', es: 'Código abierto' } },
 ]
 

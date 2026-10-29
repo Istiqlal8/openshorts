@@ -203,10 +203,11 @@ const I18N = {
     updated: 'Updated',
     footer: {
       product: 'OpenShorts',
+      platforms: 'Platforms',
+      useCases: 'Use cases',
       compare: 'Compare',
-      clipTools: 'Clip tools',
-      automate: 'Automate',
       tools: 'Free tools',
+      guides: 'Guides',
       more: 'More comparisons',
       note: `OpenShorts self-hosted is free and open source under MIT. OpenShorts Cloud
   is the hosted service: your first video free up to 60 minutes, then 20 free
@@ -222,10 +223,11 @@ const I18N = {
     updated: 'Actualizado',
     footer: {
       product: 'OpenShorts',
+      platforms: 'Plataformas',
+      useCases: 'Casos de uso',
       compare: 'Comparativas',
-      clipTools: 'Herramientas de clips',
-      automate: 'Automatizar',
       tools: 'Herramientas gratis',
+      guides: 'Guías',
       more: 'Más comparativas',
       note: `OpenShorts autoalojado es gratis y de código abierto con licencia MIT.
   OpenShorts Cloud es el servicio alojado: tu primer vídeo gratis hasta 60
@@ -343,20 +345,35 @@ const buildGraph = (page) => {
  * targets as the homepage, translated by page language. */
 const nav = (page) => `${renderNav({ lang: page.lang === 'es' ? 'es' : 'en' })}\n${NAV_SCRIPT}`
 
-/* Footer link map. The money pages (the comparison hubs, the clip makers,
- * pricing) sit in the columns so every page on the site links to them; the
- * narrow satellites share one compact line and are otherwise reached through
- * /alternatives. Labels are page names, so they stay in English. */
+/* Footer link map, one column per topic cluster (the same clusters as the
+ * nav: platforms, use cases, compare, free tools, guides). Every page on the
+ * site links to the hubs and the money pages from here; the narrow comparison
+ * satellites share one compact line. Labels are page names, so they stay in
+ * English.
+ *
+ * An entry marked `optional` names a page another module adds: it is rendered
+ * only when that page is in the build (`built`, passed by vite-plugin-seo.js),
+ * so the footer never links to a 404. */
 const FOOTER_COLUMNS = [
-  ['product', [
-    [`${SITE.url}/`, 'OpenShorts'],
-    ['/free-ai-clip-generator', 'Free AI clip generator'],
-    ['/pricing', 'Pricing'],
-    ['/how-openshorts-works', 'How it works'],
-    ['/open-source-video-clipper', 'Open source video clipper'],
-    ['/self-hosted-ai-clip-maker', 'Self-hosted AI clip maker'],
-    ['/open-source-ai-video-generator', 'Open source AI video generator'],
-    [SITE.repo, 'Source on GitHub'],
+  ['platforms', [
+    ['/platforms', 'All platforms'],
+    ['/platforms/youtube', 'YouTube clip maker'],
+    ['/platforms/youtube-shorts', 'YouTube Shorts maker'],
+    ['/platforms/tiktok', 'TikTok clip maker'],
+    ['/platforms/instagram-reels', 'AI reel generator'],
+    ['/platforms/twitch', 'Twitch clip maker'],
+    ['/platforms/kick', 'Kick clip maker'],
+    ['/youtube-to-shorts-converter', 'YouTube to Shorts converter'],
+  ]],
+  ['useCases', [
+    ['/use-cases', 'All use cases'],
+    ['/podcast-to-shorts', 'Podcast to Shorts'],
+    ['/use-cases/sermons', 'Sermon clip maker'],
+    ['/gta-5-clips', 'GTA 5 clips'],
+    ['/auto-reframe', 'Auto reframe'],
+    ['/auto-clip', 'Auto clip'],
+    ['/youtube-automation', 'YouTube automation'],
+    ['/ai-ugc-video-generator', 'AI UGC video generator', { optional: true }],
   ]],
   ['compare', [
     ['/alternatives', 'Alternatives compared'],
@@ -366,35 +383,34 @@ const FOOTER_COLUMNS = [
     ['/alternatives/submagic', 'Submagic alternative'],
     ['/opus-clip-pricing', 'Opus Clip pricing'],
     ['/free-ai-clipping-tools-compared', 'Free AI clipping tools compared'],
+    ['/free-ai-clip-generator', 'Free AI clip generator'],
     ['/alternativas', 'Alternativas (ES)'],
-  ]],
-  ['clipTools', [
-    ['/youtube-clip-maker', 'YouTube clip maker'],
-    ['/youtube-shorts-maker', 'YouTube Shorts maker'],
-    ['/tiktok-clip-maker', 'TikTok clip maker'],
-    ['/ai-reel-generator', 'AI reel generator'],
-    ['/twitch-clip-maker', 'Twitch clip maker'],
-    ['/kick-clip-maker', 'Kick clip maker'],
-    ['/sermon-clip-maker', 'Sermon clip maker'],
-    ['/podcast-to-shorts', 'Podcast to Shorts'],
-    ['/auto-reframe', 'Auto reframe'],
-    ['/how-to-clip-a-youtube-video', 'How to clip a YouTube video'],
-    ['/gta-5-clips', 'GTA 5 clips'],
-  ]],
-  ['automate', [
-    ['/mcp', 'MCP server and API'],
-    ['/automate-shorts-api', 'Automate shorts with the API'],
-    ['/n8n-youtube-shorts-automation', 'n8n YouTube Shorts automation'],
-    ['/auto-clip', 'Auto clip'],
-    ['/youtube-automation', 'YouTube automation'],
   ]],
   ['tools', [
     ['/tools', 'All free tools'],
     ['/youtube-transcript-generator', 'YouTube transcript generator'],
+    ['/tools/tiktok-transcript-generator', 'TikTok transcript generator', { optional: true }],
     ['/youtube-tag-generator', 'YouTube tag and title generator'],
     ['/video-aspect-ratio-converter', 'Video to 9:16 converter'],
-    ['/youtube-to-shorts-converter', 'YouTube to Shorts converter'],
+    ['/tools/ai-thumbnail-maker', 'AI thumbnail maker', { optional: true }],
   ]],
+  ['guides', [
+    ['/how-to', 'All guides'],
+    ['/how-to/clip-a-youtube-video', 'How to clip a YouTube video'],
+    ['/how-openshorts-works', 'How it works'],
+    ['/self-hosted-ai-clip-maker', 'Self-hosted AI clip maker'],
+    ['/open-source-video-clipper', 'Open source video clipper'],
+    ['/mcp', 'MCP server and API'],
+    ['/automate-shorts-api', 'Automate shorts with the API'],
+    ['/n8n-youtube-shorts-automation', 'n8n YouTube Shorts automation'],
+  ]],
+]
+
+const FOOTER_PRODUCT = [
+  [`${SITE.url}/`, 'OpenShorts'],
+  ['/#pricing', 'Pricing'],
+  ['/open-source-ai-video-generator', 'Open source AI video generator'],
+  [SITE.repo, 'Source on GitHub'],
 ]
 
 const FOOTER_MORE = [
@@ -405,22 +421,29 @@ const FOOTER_MORE = [
   ['/alternatives/vidyo-ai', 'Vidyo.ai (Quso)'],
   ['/alternatives/2short', '2short AI'],
   ['/alternatives/sendshort', 'SendShort'],
+  ['/alternatives/choppity', 'Choppity', { optional: true }],
+  ['/alternatives/getmunch', 'Munch', { optional: true }],
 ]
+
+/* Optional entries only when their page is built; without a `built` set
+ * (a caller that does not know the page list) they are left out. */
+const present = (built) => ([href, , opts]) => !opts?.optional || Boolean(built?.has(href))
 
 const footerLink = ([href, label]) =>
   `<a href="${esc(href)}"${href.startsWith('https://github.com') ? ' rel="noopener"' : ''}>${esc(label)}</a>`
 
-const footer = (t) => `
+const footer = (t, built) => `
 <footer class="site"><div class="wrap">
   <div class="cols">
 ${FOOTER_COLUMNS.map(
   ([key, links]) => `    <div>
       <p class="col-title">${esc(t.footer[key])}</p>
-      <ul>${links.map((l) => `<li>${footerLink(l)}</li>`).join('')}</ul>
+      <ul>${links.filter(present(built)).map((l) => `<li>${footerLink(l)}</li>`).join('')}</ul>
     </div>`
 ).join('\n')}
   </div>
-  <p class="more"><span class="col-title">${esc(t.footer.more)}:</span> ${FOOTER_MORE.map(footerLink).join(' ')}</p>
+  <p class="more"><span class="col-title">${esc(t.footer.product)}:</span> ${FOOTER_PRODUCT.map(footerLink).join(' ')}</p>
+  <p class="more"><span class="col-title">${esc(t.footer.more)}:</span> ${FOOTER_MORE.filter(present(built)).map(footerLink).join(' ')}</p>
   <p>${t.footer.note}
   ${esc(t.footer.lastUpdated)} ${esc(SITE.updated)}.</p>
 </div></footer>`
@@ -552,7 +575,7 @@ const relatedBlock = (related, title) =>
         )
         .join('')}</div>`
 
-export function renderPage(page, related = [], { cta = true, toolScript = '' } = {}) {
+export function renderPage(page, related = [], { cta = true, toolScript = '', built = null } = {}) {
   const canonical = `${SITE.url}${page.path}`
   const t = strings(page)
   const showCta = cta && !page.noindex && page.cta !== false
@@ -619,7 +642,7 @@ ${showCta ? ctaBlock(page) : ''}
 ${page.body}
 ${relatedBlock(related, page.relatedTitle || t.related)}
 </div></main>
-${footer(t)}
+${footer(t, built)}
 ${page.tool && toolScript ? `<script type="module" src="${esc(toolScript)}"></script>` : ''}
 </body>
 </html>`

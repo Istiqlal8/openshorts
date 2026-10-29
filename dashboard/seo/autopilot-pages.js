@@ -49,7 +49,7 @@ const autoClip = () => ({
   description:
     'Autopilot auto clips every new video on your YouTube channel into vertical shorts with subtitles and can post the best ones daily. Rules, limits, price.',
   h1: 'Auto clip: every new YouTube video turned into shorts on its own',
-  breadcrumb: [{ name: 'Auto clip' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'Auto clip' }],
   published: PUBLISHED,
   updated: PUBLISHED,
   relatedTitle: 'Related',
@@ -173,7 +173,7 @@ const youtubeAutomation = () => ({
   description:
     'Automate the repetitive part of a real YouTube channel: clip every upload into Shorts, schedule them, or wire it to n8n, the API or Claude over MCP.',
   h1: 'YouTube automation: hand the repetitive work to software, keep the channel yours',
-  breadcrumb: [{ name: 'YouTube automation' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'YouTube automation' }],
   published: PUBLISHED,
   updated: PUBLISHED,
   relatedTitle: 'Related',

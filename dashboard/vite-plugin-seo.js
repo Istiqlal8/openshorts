@@ -51,7 +51,6 @@ const sitemapXml = (pages) => {
  * shows up if a page with that path is actually built, so the list can never
  * link to a 404, and every line reuses the page's own h1 and description. */
 const LLMS_KEY_PATHS = [
-  '/pricing',
   '/alternatives',
   '/alternatives/opus-clip',
   '/free-ai-clip-generator',
@@ -59,19 +58,25 @@ const LLMS_KEY_PATHS = [
   '/self-hosted-ai-clip-maker',
   '/free-ai-clipping-tools-compared',
   '/how-openshorts-works',
-  '/how-to-clip-a-youtube-video',
-  '/youtube-clip-maker',
-  '/youtube-shorts-maker',
+  '/platforms',
+  '/platforms/youtube',
+  '/platforms/youtube-shorts',
   '/youtube-to-shorts-converter',
-  '/tiktok-clip-maker',
-  '/ai-reel-generator',
+  '/platforms/tiktok',
+  '/platforms/instagram-reels',
+  '/platforms/twitch',
+  '/platforms/kick',
+  '/use-cases',
   '/podcast-to-shorts',
-  '/twitch-clip-maker',
-  '/kick-clip-maker',
+  '/use-cases/sermons',
   '/auto-reframe',
-  '/sermon-clip-maker',
+  '/ai-ugc-video-generator',
+  '/how-to',
+  '/how-to/clip-a-youtube-video',
   '/automate-shorts-api',
   '/mcp',
+  '/tools',
+  '/tools/ai-thumbnail-maker',
 ]
 
 /* Retired URLs (now redirects). Kept out of llms.txt even while a page object
@@ -165,6 +170,8 @@ const substituteAnalyticsEnv = (html, env) => {
 
 export default function seoPlugin() {
   const pages = buildPages()
+  // Every path that gets a page, for the footer's optional entries (render.js).
+  const built = new Set(pages.concat(legalPages()).map((p) => p.path))
   let env = {}
 
   return {
@@ -212,6 +219,7 @@ export default function seoPlugin() {
           source: substituteAnalyticsEnv(
             renderPage(page, relatedFor(page, pages), {
               toolScript: page.tool ? entries[page.tool.entry] : '',
+              built,
             }),
             env
           ),
@@ -228,7 +236,7 @@ export default function seoPlugin() {
         this.emitFile({
           type: 'asset',
           fileName: `${page.path.replace(/^\//, '')}.html`,
-          source: substituteAnalyticsEnv(renderPage(page, [], { cta: false }), env),
+          source: substituteAnalyticsEnv(renderPage(page, [], { cta: false, built }), env),
         })
       }
 
@@ -243,7 +251,7 @@ export default function seoPlugin() {
         type: 'asset',
         fileName: '404.html',
         source: substituteAnalyticsEnv(
-          renderPage(notFoundPage(), relatedFor(pages[0], pages), { cta: false }),
+          renderPage(notFoundPage(), relatedFor(pages[0], pages), { cta: false, built }),
           env
         ),
       })

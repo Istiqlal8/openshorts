@@ -131,22 +131,22 @@ const HERO_FORM = `<form id="seo-hero-form" action="/#app" method="get" style="d
 /* Per-platform links, the same ones and in the same order as WORKS_WITH,
  * PLATFORMS and SWITCHING in Landing.jsx. */
 const WORKS_WITH = [
-  ['/youtube-clip-maker', 'YouTube'],
-  ['/twitch-clip-maker', 'Twitch'],
-  ['/kick-clip-maker', 'Kick'],
-  ['/tiktok-clip-maker', 'TikTok'],
+  ['/platforms/youtube', 'YouTube'],
+  ['/platforms/twitch', 'Twitch'],
+  ['/platforms/kick', 'Kick'],
+  ['/platforms/tiktok', 'TikTok'],
   ['/podcast-to-shorts', 'podcasts'],
 ]
 
 const PLATFORMS = [
   ['YouTube clips', 'Paste a YouTube link and get vertical clips back, Shorts for your own channel, or the whole video turned into 9:16 pieces.',
-    [['/youtube-clip-maker', 'YouTube clip maker'], ['/youtube-shorts-maker', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']]],
+    [['/platforms/youtube', 'YouTube clip maker'], ['/platforms/youtube-shorts', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']]],
   ['TikTok &amp; Reels', 'The same clips, captioned and with a hook, sent to TikTok and Instagram Reels from the dashboard.',
-    [['/tiktok-clip-maker', 'TikTok clip maker'], ['/ai-reel-generator', 'AI reel generator']]],
+    [['/platforms/tiktok', 'TikTok clip maker'], ['/platforms/instagram-reels', 'AI reel generator']]],
   ['Streams', 'Hours-long Twitch and Kick VODs clipped in parts, with the facecam kept and quiet gameplay still handled.',
-    [['/twitch-clip-maker', 'Twitch clip maker'], ['/kick-clip-maker', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']]],
+    [['/platforms/twitch', 'Twitch clip maker'], ['/platforms/kick', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']]],
   ['Podcasts &amp; talks', 'Both podcast hosts kept in frame, only the sermon clipped out of a service, and a speaker who walks the stage tracked.',
-    [['/podcast-to-shorts', 'Podcast clip maker'], ['/sermon-clip-maker', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']]],
+    [['/podcast-to-shorts', 'Podcast clip maker'], ['/use-cases/sermons', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']]],
 ]
 
 const SWITCHING = [
@@ -185,6 +185,7 @@ ${NAV_SCRIPT}
   <h2 style="${S.h2}">Made for every platform: YouTube, TikTok, streams and podcasts</h2>
   <p style="${S.muted};max-width:48rem">One clip generator, tuned to where the video comes from and where the clips are going.</p>
   <div style="${S.grid}">${PLATFORMS.map(platformCard).join('')}</div>
+  <p style="${S.p};margin-top:1.25rem">${link(['/platforms', 'Every platform and its specs &rarr;'])}</p>
 </div></section>
 
 <section style="${S.section}"><div style="${S.wrap}">
@@ -199,7 +200,6 @@ ${NAV_SCRIPT}
     ${card('OpenShorts self-hosted &middot; $0', EDITIONS.selfHosted.summary)}
     ${card('OpenShorts Cloud &middot; free tier, then from $12/month', EDITIONS.cloud.summary)}
   </div>
-  <p style="${S.p};margin-top:1.25rem"><a style="${S.a}" href="/pricing">See all plans and limits &rarr;</a></p>
 </div></section>
 
 <section id="features" style="${S.section}"><div style="${S.wrap}">
@@ -231,16 +231,19 @@ ${NAV_SCRIPT}
     <a style="${S.a}" href="/video-aspect-ratio-converter">Video to 9:16 converter</a> &middot;
     <a style="${S.a}" href="/auto-clip">Auto clip</a> &middot;
     <a style="${S.a}" href="/youtube-automation">YouTube automation</a> &middot;
-    <a style="${S.a}" href="/youtube-clip-maker">YouTube clip maker</a> &middot;
-    <a style="${S.a}" href="/youtube-shorts-maker">YouTube Shorts maker</a> &middot;
-    <a style="${S.a}" href="/tiktok-clip-maker">TikTok clip maker</a> &middot;
-    <a style="${S.a}" href="/ai-reel-generator">AI reel generator</a> &middot;
-    <a style="${S.a}" href="/twitch-clip-maker">Twitch clip maker</a> &middot;
-    <a style="${S.a}" href="/kick-clip-maker">Kick clip maker</a> &middot;
+    <a style="${S.a}" href="/platforms">All platforms</a> &middot;
+    <a style="${S.a}" href="/use-cases">Use cases</a> &middot;
+    <a style="${S.a}" href="/how-to">Guides</a> &middot;
+    <a style="${S.a}" href="/platforms/youtube">YouTube clip maker</a> &middot;
+    <a style="${S.a}" href="/platforms/youtube-shorts">YouTube Shorts maker</a> &middot;
+    <a style="${S.a}" href="/platforms/tiktok">TikTok clip maker</a> &middot;
+    <a style="${S.a}" href="/platforms/instagram-reels">AI reel generator</a> &middot;
+    <a style="${S.a}" href="/platforms/twitch">Twitch clip maker</a> &middot;
+    <a style="${S.a}" href="/platforms/kick">Kick clip maker</a> &middot;
     <a style="${S.a}" href="/auto-reframe">Auto reframe</a> &middot;
-    <a style="${S.a}" href="/sermon-clip-maker">Sermon clip maker</a> &middot;
-    <a style="${S.a}" href="/how-to-clip-a-youtube-video">How to clip a YouTube video</a> &middot;
-    <a style="${S.a}" href="/pricing">Pricing</a> &middot;
+    <a style="${S.a}" href="/use-cases/sermons">Sermon clip maker</a> &middot;
+    <a style="${S.a}" href="/how-to/clip-a-youtube-video">How to clip a YouTube video</a> &middot;
+    <a style="${S.a}" href="/#pricing">Pricing</a> &middot;
     <a style="${S.a}" href="/open-source-video-clipper">Open source video clipper</a> &middot;
     <a style="${S.a}" href="/self-hosted-ai-clip-maker">Self-hosted AI clip maker</a> &middot;
     <a style="${S.a}" href="/open-source-ai-video-generator">Open source AI video generator</a> &middot;

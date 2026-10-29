@@ -1,4 +1,4 @@
-/* Paste-a-link widget for the clip tool pages (/youtube-clip-maker and the
+/* Paste-a-link widget for the clip tool pages (/platforms/youtube and the
  * rest of seo/clip-tools.js).
  *
  * It does exactly what the homepage hero does with a pasted link

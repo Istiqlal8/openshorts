@@ -254,10 +254,10 @@ const FAQItem = ({ question, answer, isOpen, onClick }) => (
 const LINK = 'text-ink2 underline underline-offset-2 hover:text-ink transition-colors';
 
 const WORKS_WITH = [
-  ['/youtube-clip-maker', 'youtube'],
-  ['/twitch-clip-maker', 'twitch'],
-  ['/kick-clip-maker', 'kick'],
-  ['/tiktok-clip-maker', 'tiktok'],
+  ['/platforms/youtube', 'youtube'],
+  ['/platforms/twitch', 'twitch'],
+  ['/platforms/kick', 'kick'],
+  ['/platforms/tiktok', 'tiktok'],
   ['/podcast-to-shorts', 'podcasts'],
 ];
 
@@ -266,25 +266,25 @@ const PLATFORMS = [
     icon: Youtube,
     title: 'YouTube clips',
     text: 'Paste a YouTube link and get vertical clips back, Shorts for your own channel, or the whole video turned into 9:16 pieces.',
-    links: [['/youtube-clip-maker', 'YouTube clip maker'], ['/youtube-shorts-maker', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']],
+    links: [['/platforms/youtube', 'YouTube clip maker'], ['/platforms/youtube-shorts', 'YouTube Shorts maker'], ['/youtube-to-shorts-converter', 'YouTube to Shorts converter']],
   },
   {
     icon: Instagram,
     title: 'TikTok & Reels',
     text: 'The same clips, captioned and with a hook, sent to TikTok and Instagram Reels from the dashboard.',
-    links: [['/tiktok-clip-maker', 'TikTok clip maker'], ['/ai-reel-generator', 'AI reel generator']],
+    links: [['/platforms/tiktok', 'TikTok clip maker'], ['/platforms/instagram-reels', 'AI reel generator']],
   },
   {
     icon: Monitor,
     title: 'Streams',
     text: 'Hours-long Twitch and Kick VODs clipped in parts, with the facecam kept and quiet gameplay still handled.',
-    links: [['/twitch-clip-maker', 'Twitch clip maker'], ['/kick-clip-maker', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']],
+    links: [['/platforms/twitch', 'Twitch clip maker'], ['/platforms/kick', 'Kick clip maker'], ['/gta-5-clips', 'GTA 5 clips']],
   },
   {
     icon: FileVideo,
     title: 'Podcasts & talks',
     text: 'Both podcast hosts kept in frame, only the sermon clipped out of a service, and a speaker who walks the stage tracked.',
-    links: [['/podcast-to-shorts', 'Podcast clip maker'], ['/sermon-clip-maker', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']],
+    links: [['/podcast-to-shorts', 'Podcast clip maker'], ['/use-cases/sermons', 'Sermon clip maker'], ['/auto-reframe', 'Auto reframe']],
   },
 ];
 
@@ -297,7 +297,83 @@ const SWITCHING = [
   ['/alternatives', 'all alternatives'],
 ];
 
+// A landing section anchor (#pricing, #features…), not an app route (#app,
+// #/pricing, #legal…).
+const NOT_SECTIONS = new Set(['app', 'landing', 'legal']);
+const sectionId = (hash) => {
+  const m = /^#([a-z][\w-]*)$/i.exec(hash || '');
+  return m && !NOT_SECTIONS.has(m[1]) ? m[1] : null;
+};
+
+// Arriving on /#pricing (the nav's "pricing" from every static page): the
+// browser jumps to the anchor in the static fallback, then React replaces the
+// fallback and the jump is lost. The pricing section also renders only once
+// /api/config says billing is on. So scroll once the section exists, keep it
+// aligned for a moment while late content above settles, and give up after a
+// few seconds or as soon as the visitor scrolls on their own.
+function useScrollToHashSection() {
+  React.useEffect(() => {
+    const id = sectionId(window.location.hash);
+    if (!id) return undefined;
+    let stopped = false;
+    let foundAt = 0;
+    let timer;
+    const start = Date.now();
+    const stop = () => { stopped = true; };
+    const events = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+    events.forEach((e) => window.addEventListener(e, stop, { passive: true }));
+    const tick = () => {
+      if (stopped) return;
+      const el = document.getElementById(id);
+      if (el) {
+        const margin = parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+        if (Math.abs(el.getBoundingClientRect().top - margin) > 4) el.scrollIntoView({ block: 'start' });
+        if (!foundAt) foundAt = Date.now();
+        if (Date.now() - foundAt > 1500) return;
+      } else if (Date.now() - start > 6000) {
+        return;
+      }
+      timer = setTimeout(tick, 100);
+    };
+    tick();
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, stop));
+    };
+  }, []);
+}
+
+// A click on a link to a section of this page (the nav's /#pricing, the
+// in-page #pricing buttons) scrolls smoothly instead of jumping, and closes
+// the mobile menu or the open dropdown it came from.
+function useSmoothSectionLinks() {
+  React.useEffect(() => {
+    const onClick = (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a || (a.target && a.target !== '_self')) return;
+      let url;
+      try { url = new URL(a.getAttribute('href'), window.location.href); } catch { return; }
+      if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+      const id = sectionId(url.hash);
+      const el = id && document.getElementById(id);
+      if (!el) return;
+      e.preventDefault();
+      const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+      if (window.location.hash !== url.hash) window.history.pushState(null, '', url.hash);
+      document.querySelectorAll('.osn-toggle').forEach((t) => { t.checked = false; });
+      document.querySelectorAll('[data-osn-dd][open]').forEach((d) => { d.open = false; });
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+}
+
 export default function Landing({ onLaunchApp }) {
+  useScrollToHashSection();
+  useSmoothSectionLinks();
   const { billingEnabled } = useAuth();
   const [openFaq, setOpenFaq] = React.useState(null);
   // Start from whatever was typed into the static paste box of the crawler
@@ -637,6 +713,9 @@ export default function Landing({ onLaunchApp }) {
               </div>
             ))}
           </div>
+          <p className="mt-8 text-sm lowercase">
+            <a href="/platforms" className={LINK}>every platform and its specs →</a>
+          </p>
         </div>
       </section>
 
@@ -821,9 +900,6 @@ export default function Landing({ onLaunchApp }) {
               Your first video is free, up to 60 minutes. Then 20 free minutes a month — no credit card. Cancel anytime.
             </SectionHeader>
             <PricingSection onRequireLogin={() => { window.location.hash = '#/pricing'; }} />
-            <p className="mt-8 text-sm lowercase">
-              <a href="/pricing" className={LINK}>see all plans and limits →</a>
-            </p>
           </div>
         </section>
       )}
@@ -1136,16 +1212,19 @@ export default function Landing({ onLaunchApp }) {
             <a href="/video-aspect-ratio-converter" className="hover:text-ink transition-colors">video to 9:16 converter</a>
             <a href="/auto-clip" className="hover:text-ink transition-colors">auto clip</a>
             <a href="/youtube-automation" className="hover:text-ink transition-colors">youtube automation</a>
-            <a href="/youtube-clip-maker" className="hover:text-ink transition-colors">youtube clip maker</a>
-            <a href="/youtube-shorts-maker" className="hover:text-ink transition-colors">youtube shorts maker</a>
-            <a href="/tiktok-clip-maker" className="hover:text-ink transition-colors">tiktok clip maker</a>
-            <a href="/ai-reel-generator" className="hover:text-ink transition-colors">ai reel generator</a>
-            <a href="/twitch-clip-maker" className="hover:text-ink transition-colors">twitch clip maker</a>
-            <a href="/kick-clip-maker" className="hover:text-ink transition-colors">kick clip maker</a>
+            <a href="/platforms" className="hover:text-ink transition-colors">all platforms</a>
+            <a href="/use-cases" className="hover:text-ink transition-colors">use cases</a>
+            <a href="/how-to" className="hover:text-ink transition-colors">guides</a>
+            <a href="/platforms/youtube"className="hover:text-ink transition-colors">youtube clip maker</a>
+            <a href="/platforms/youtube-shorts" className="hover:text-ink transition-colors">youtube shorts maker</a>
+            <a href="/platforms/tiktok" className="hover:text-ink transition-colors">tiktok clip maker</a>
+            <a href="/platforms/instagram-reels" className="hover:text-ink transition-colors">ai reel generator</a>
+            <a href="/platforms/twitch" className="hover:text-ink transition-colors">twitch clip maker</a>
+            <a href="/platforms/kick" className="hover:text-ink transition-colors">kick clip maker</a>
             <a href="/auto-reframe" className="hover:text-ink transition-colors">auto reframe</a>
-            <a href="/sermon-clip-maker" className="hover:text-ink transition-colors">sermon clip maker</a>
-            <a href="/how-to-clip-a-youtube-video" className="hover:text-ink transition-colors">how to clip a youtube video</a>
-            <a href="/pricing" className="hover:text-ink transition-colors">pricing</a>
+            <a href="/use-cases/sermons" className="hover:text-ink transition-colors">sermon clip maker</a>
+            <a href="/how-to/clip-a-youtube-video" className="hover:text-ink transition-colors">how to clip a youtube video</a>
+            <a href="/#pricing" className="hover:text-ink transition-colors">pricing</a>
             <a href="/open-source-video-clipper" className="hover:text-ink transition-colors">open source video clipper</a>
             <a href="/self-hosted-ai-clip-maker" className="hover:text-ink transition-colors">self-hosted ai clip maker</a>
             <a href="/podcast-to-shorts" className="hover:text-ink transition-colors">podcast clips</a>

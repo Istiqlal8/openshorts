@@ -241,3 +241,8 @@
 @media (prefers-reduced-motion: reduce) {
   .showcase-in, .showcase-progress { animation: none; }
 }
+
+/* ---- section anchors (/#pricing…) land below the fixed site nav ---- */
+section[id] {
+  scroll-margin-top: 4rem;
+}

@@ -1,5 +1,6 @@
-/* Guide pages: pricing, self-hosting, the free-plan comparison and the
- * "how to clip a YouTube video" guide.
+/* Guide pages: self-hosting, the free-plan comparison and the "how to clip a
+ * YouTube video" guide. Pricing lives in the homepage #pricing section (the
+ * standalone /pricing page was retired; nginx sends /pricing to /#pricing).
  *
  * Every price, minute and limit on these pages is read from data.js. Where a
  * fact had to be transcribed into a structured field (the free-plan table), the
@@ -60,8 +61,7 @@ const PAID = [
     perMinuteCents: Math.round((p.monthly.price / p.monthly.minutes) * 1000) / 10,
   }
 })
-const [STARTER, CREATOR, PRO] = PAID
-const TOPUP_PRICE = osPlan('Pro + 200 min').monthly.price - PRO.monthly
+const [STARTER, , PRO] = PAID
 const FIRST_VIDEO_MINUTES = 60
 assertIn(EDITIONS.cloud.summary, `up to ${FIRST_VIDEO_MINUTES} minutes`, 'EDITIONS.cloud first video')
 assertIn(EDITIONS.cloud.summary, 'about 50 seconds', 'EDITIONS.cloud GPU speed')
@@ -70,307 +70,6 @@ if (FREE.monthly.minutes !== EDITIONS.cloud.freeMinutes) throw new Error('[guide
 if (STARTER.monthly !== EDITIONS.cloud.lowPrice || PRO.monthly !== EDITIONS.cloud.highPrice) {
   throw new Error('[guide-pages] EDITIONS.cloud low/high price disagree with PRICE_MODELS')
 }
-
-const checkoutHref = (plan, yearly = false) =>
-  `/#/pricing?plan=${plan}${yearly ? '&interval=year' : ''}&src=pricing_page`
-const track = (label) =>
-  ` onclick="window.op&amp;&amp;window.op('track','SeoCtaClick',{page:'/pricing',plan:'${label}'})"`
-const btn = (href, label, trackAs, ghost = false) =>
-  `<a class="${ghost ? 'btn-ghost' : 'btn-primary'}" href="${esc(href)}"${track(trackAs)}>${esc(label)}</a>`
-
-/* ---------------------------------------------------------------------- /pricing */
-
-const PRICING_FAQ = [
-  {
-    q: 'Is OpenShorts free?',
-    a: `Two editions, two answers. OpenShorts self-hosted is free and open source under MIT, with no watermark and no cap; you run it with Docker and bring your own API keys. OpenShorts Cloud has a free plan (your first video clipped whole up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month, watermarked, no credit card) and paid plans from ${money(STARTER.monthly)}/month to ${money(PRO.monthly)}/month without a watermark.`,
-  },
-  {
-    q: 'Does the free plan put a watermark on clips?',
-    a: `Yes. Clips made on the Cloud free plan carry an OpenShorts watermark and are kept for 7 days. Every paid plan from ${money(STARTER.monthly)}/month removes it, and upgrading also removes it from the clips you already made on the free plan, without re-rendering them. The self-hosted edition never watermarks anything.`,
-  },
-  {
-    q: 'What does one minute pay for?',
-    a: 'One minute of the source video you import, rounded down to whole minutes with a minimum of 1. A 45-minute podcast uses 45 minutes whether it yields 3 clips or 15. Trimming, recutting, reframing, captions and the hook overlay on clips you already have are free; titles and descriptions are free too.',
-  },
-  {
-    q: 'Can I get a refund?',
-    a: 'If you were charged in the last 14 days and have not used the service since, we refund that most recent charge in full; email info@openshorts.app from the account address. EU consumers also have the statutory 14-day withdrawal right, which refunds the unused part if you did spend minutes. The full rules are on the refund policy page.',
-  },
-  {
-    q: 'Can I cancel or pause my plan?',
-    a: 'You can cancel any time from your account page; the plan stays active until the end of the period you paid for. On a monthly plan the cancel flow can also offer to put the subscription on hold for a month instead, once per subscription.',
-  },
-  {
-    q: 'Can I switch between Starter, Creator and Pro?',
-    a: 'One subscription runs per account, and you manage it from your account page (Manage billing opens the Stripe customer portal). Moving from free to any paid plan removes the watermark from your existing clips. Unused plan minutes do not roll over to the next period.',
-  },
-  {
-    q: 'Do yearly plans cost less?',
-    a: `Yes, yearly billing is two months free: Starter ${money(STARTER.yearlyTotal)}/year, Creator ${money(CREATOR.yearlyTotal)}/year and Pro ${money(PRO.yearlyTotal)}/year, against ${money(STARTER.monthly)}, ${money(CREATOR.monthly)} and ${money(PRO.monthly)} a month. The monthly minute allowance is the same on both.`,
-  },
-  {
-    q: 'Is the API or MCP server an extra cost?',
-    a: 'No. API and MCP calls draw from the same minute balance as the dashboard on every Cloud plan, with no per-call charge. The self-hosted edition serves the same endpoints with no metering at all.',
-  },
-  {
-    q: 'Should I self-host instead of paying for Cloud?',
-    a: `Self-host if you have a machine with Docker and 8 GB+ of RAM, want the video to stay on it, and do not mind slower processing on CPU (an 8-minute video takes 5 to 8 minutes) or managing your own Gemini key. Pay for Cloud if you want a GPU (about 50 seconds for the same video), the keys included, auto-posting wired up and an always-on MCP endpoint, from ${money(STARTER.monthly)}/month.`,
-  },
-]
-
-const pricingTable = () => {
-  const row = (cells) => `<tr>${cells.map((c, i) => (i === 0 ? `<td class="os">${c}</td>` : `<td>${c}</td>`)).join('')}</tr>`
-  return `<table>
-<thead><tr><th>Plan</th><th>Monthly</th><th>Yearly</th><th>Minutes a month</th><th>Watermark</th><th>Start</th></tr></thead>
-<tbody>
-${row([
-  '<strong>Free</strong> (Cloud)',
-  '$0',
-  '$0',
-  `First video whole up to ${FIRST_VIDEO_MINUTES} min, then ${FREE.monthly.minutes} min`,
-  'Yes, clips kept 7 days',
-  btn('/#app', 'Start free', 'free', true),
-])}
-${PAID.map((p) =>
-  row([
-    `<strong>${esc(p.name)}</strong><br><small>${esc(p.blurb)}</small>`,
-    `${money(p.monthly)}/month`,
-    `${money(p.yearlyTotal)}/year (${money(p.yearlyPerMonth)}/month)`,
-    `${p.minutes} min`,
-    'No',
-    `${btn(checkoutHref(p.id), `Get ${p.name}`, p.id)}<br><a href="${esc(checkoutHref(p.id, true))}"${track(`${p.id}_year`)}>or yearly</a>`,
-  ])
-).join('\n')}
-${row([
-  '<strong>Self-hosted</strong> (MIT)',
-  '$0',
-  '$0',
-  'No cap: your own hardware',
-  'Never',
-  `<a href="/self-hosted-ai-clip-maker">How to self-host</a>`,
-])}
-</tbody>
-</table>`
-}
-
-const pricing = () => ({
-  path: '/pricing',
-  title: `OpenShorts Pricing: Free, ${money(STARTER.monthly)}, ${money(CREATOR.monthly)}, ${money(PRO.monthly)} Plans`,
-  description: `OpenShorts Cloud: a free plan with ${FREE.monthly.minutes} min/month (watermarked), then Starter ${money(STARTER.monthly)}, Creator ${money(CREATOR.monthly)} and Pro ${money(PRO.monthly)} a month without watermark. Self-hosted: $0 under MIT.`,
-  h1: 'OpenShorts pricing: a free plan, three paid plans, and $0 self-hosted',
-  breadcrumb: [{ name: 'Pricing' }],
-  published: PUBLISHED,
-  updated: PUBLISHED,
-  cta: {
-    label: 'Start free',
-    title: 'Try it on one of your videos first',
-    body: `Your first video is clipped whole up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} free minutes a month. Google sign-in, no credit card.`,
-    button: 'Start free',
-    href: '/#app',
-  },
-  tldr: [
-    `OpenShorts Cloud has four plans: <strong>Free</strong> ($0, your first video up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month, watermarked), <strong>Starter</strong> at ${money(STARTER.monthly)}/month for ${STARTER.minutes} minutes, <strong>Creator</strong> at ${money(CREATOR.monthly)}/month for ${CREATOR.minutes} minutes and <strong>Pro</strong> at ${money(PRO.monthly)}/month for ${PRO.minutes} minutes. Paid plans have no watermark.`,
-    'A minute is one minute of the source video you import, not one clip you export. Editing the clips you already have (trims, recuts, captions, hooks) costs nothing.',
-    'OpenShorts self-hosted is the same software, free and open source under MIT: run it with Docker on your own machine, bring your own API keys, no watermark and no cap.',
-  ],
-  facts: [
-    { k: 'Free', v: '$0', s: `${FREE.monthly.minutes} min/month after the first video, watermarked` },
-    { k: STARTER.name, v: `${money(STARTER.monthly)}/mo`, s: `${STARTER.minutes} min, no watermark` },
-    { k: CREATOR.name, v: `${money(CREATOR.monthly)}/mo`, s: `${CREATOR.minutes} min, no watermark` },
-    { k: PRO.name, v: `${money(PRO.monthly)}/mo`, s: `${PRO.minutes} min, priority queue` },
-  ],
-  body: `
-<h2>How much does OpenShorts cost?</h2>
-<p class="checked">Prices in US dollars, taxes shown at checkout. Checked ${esc(OS.checked)}.</p>
-${pricingTable()}
-<p>Every button above opens the real Stripe checkout for that plan. If you are not
-signed in yet, it asks you to sign in with Google first and then carries on to
-the same checkout, so the plan you picked is not lost on the way.</p>
-<p>The price per minute falls as the plan grows: about ${STARTER.perMinuteCents}¢ a
-minute on ${STARTER.name}, ${CREATOR.perMinuteCents}¢ on ${CREATOR.name} and
-${PRO.perMinuteCents}¢ on ${PRO.name}, billed monthly. On yearly billing each plan
-costs ten months instead of twelve.</p>
-
-<h2>What does a minute mean?</h2>
-<p>OpenShorts meters one thing: the length of the video you send it. A minute on
-your plan is one minute of source video, rounded down to whole minutes with a
-minimum of one, so a 4 minute 40 second video costs 4 minutes and a 30-second
-video costs 1. It does not matter how many clips come out. A 45-minute podcast
-uses 45 minutes whether the AI finds 3 moments worth posting or 15.</p>
-<p>Before a job runs, the dashboard shows what it will cost. If you only want part
-of a long video, "Clip only part of it" lets you pick a from/to range and only
-that stretch is billed. A 3-hour livestream where the interesting bit is the last
-40 minutes costs 40 minutes, not 180.</p>
-<p>What does not use minutes:</p>
-<ul>
-<li>Editing clips you already have: trimming, recutting, reframing, re-rendering, captions and the hook overlay.</li>
-<li>Titles and descriptions for YouTube.</li>
-<li>Up to 5 AI edits or AI effects a day. Past that, each one sends the clip to Gemini again and costs like a short analysis.</li>
-</ul>
-<p>AI thumbnail image generation is the one extra: each batch uses about 3 minutes
-of your balance. API and MCP calls are not a separate meter; an agent that clips
-a video spends the same minutes the dashboard would.</p>
-
-<h2>What does the free plan include?</h2>
-<p>The free plan exists so you can judge the output on your own footage before
-paying. Your first video is clipped whole up to ${FIRST_VIDEO_MINUTES} minutes long,
-so a full podcast episode or webinar works on day one. After that you get
-${FREE.monthly.minutes} minutes a month, reset monthly. A video longer than your
-remaining balance is not refused: the free plan clips its first part, up to the
-minutes you have left, and tells you which part the clips came from.</p>
-<ul>
-<li>YouTube links or uploads, the same GPU rendering as the paid plans, and the Gemini key included.</li>
-<li>No credit card: you sign in with Google.</li>
-<li>Clips carry an OpenShorts watermark and are kept for 7 days.</li>
-</ul>
-<p>The watermark is honest about what it is: the reason to upgrade. It is burned
-only into the copy you are served, never into the clip itself, so upgrading
-removes it from the clips you already made without re-processing anything.</p>
-
-<h2>What does every paid plan add?</h2>
-<ul>
-<li><strong>No watermark</strong> and no 7-day expiry: clips stay in your library.</li>
-<li><strong>GPU rendering</strong>: an 8-minute video is clipped in about 50 seconds, against 5 to 8 minutes on a typical CPU.</li>
-<li><strong>The Gemini key is included</strong>, so there is nothing to sign up for or paste.</li>
-<li><strong>Auto-posting</strong> to TikTok, Instagram Reels and YouTube Shorts, already wired up.</li>
-<li><strong>MCP server and API access</strong> for Claude, ChatGPT, n8n or your own scripts, on the same minutes. See <a href="/mcp">the MCP guide</a> and <a href="/automate-shorts-api">the API guide</a>.</li>
-<li><strong>YouTube Studio</strong>: titles, thumbnails and descriptions.</li>
-<li>On <strong>${PRO.name}</strong>, the priority processing queue.</li>
-</ul>
-<p>Need more than a plan's allowance in one month? One-time top-ups add minutes
-from your account page without changing plan; on ${PRO.name}, 200 extra minutes
-cost ${money(TOPUP_PRICE)}.</p>
-
-<h3>What still needs your own key</h3>
-<p>Two features use premium generation that no plan covers yet: AI Shorts (UGC
-videos with AI actors, through fal.ai) and voice dubbing into 30+ languages
-(through ElevenLabs). You connect your own keys for those and the providers bill
-you directly. Your plan still covers the script and the orchestration.</p>
-
-<h2>Monthly or yearly, cancelling and pausing</h2>
-<p>Every paid plan is sold monthly or yearly. Yearly is two months free:
-${STARTER.name} ${money(STARTER.yearlyTotal)}/year, ${CREATOR.name}
-${money(CREATOR.yearlyTotal)}/year and ${PRO.name} ${money(PRO.yearlyTotal)}/year.
-Your monthly minutes are the same either way.</p>
-<p>Subscriptions renew automatically until you cancel. You cancel from your
-account page (a reason, an optional rating, then confirm) and it takes effect at the end of the period you
-paid for, which you keep using in full. If the reason is that you are not using
-it this month, a monthly plan can be put on hold for a month instead of
-cancelled (once per subscription): no charge while it is on hold, the free plan's
-minutes in the meantime, your library kept, and billing
-resumes on its own afterwards. Unused plan
-minutes do not roll over to the next period.</p>
-
-<h2>Refunds</h2>
-<p>If you were charged in the last 14 days and have not used the service since,
-we refund that most recent charge in full, no reason needed. It is built for the
-renewal you did not notice. If you did spend minutes, EU consumers can still use
-the 14-day withdrawal right, which refunds the part you did not use. Both are
-one email to info@openshorts.app from your account address; the details are in
-the <a href="/refunds">refund policy</a>.</p>
-
-<h2>Self-hosted or Cloud: which one is cheaper for you?</h2>
-<p>Both run the same pipeline. The difference is who provides the machine and
-the keys.</p>
-<table>
-<thead><tr><th></th><th>Self-hosted</th><th>Cloud</th></tr></thead>
-<tbody>
-<tr><td>Price</td><td class="os">$0, MIT licence</td><td class="os">Free plan, then ${money(STARTER.monthly)} to ${money(PRO.monthly)}/month</td></tr>
-<tr><td>Speed, 8-min video</td><td>5 to 8 min on CPU; about a minute with an NVIDIA GPU</td><td>About 50 seconds on our GPU</td></tr>
-<tr><td>API keys</td><td>Bring your own Gemini (or a local LLM)</td><td>Gemini included</td></tr>
-<tr><td>Watermark and cap</td><td>None</td><td>Watermark and ${FREE.monthly.minutes} min/month on free; neither on paid</td></tr>
-<tr><td>Where the video goes</td><td>Stays on your machine</td><td>Our servers</td></tr>
-<tr><td>MCP endpoint</td><td>Only while your machine is on</td><td>Always on</td></tr>
-</tbody>
-</table>
-<p>If you process a lot of long recordings and already have a capable machine,
-self-hosting wins on cost by a wide margin. The setup, requirements and real
-running costs are on <a href="/self-hosted-ai-clip-maker">the self-hosting guide</a>.</p>
-
-<h2>How OpenShorts compares on price</h2>
-<p>Most clipping tools meter the minutes you import, like we do, so they can be
-priced on one axis. Move the slider to your own monthly volume; each bar is the
-cheapest published plan that covers it.</p>
-${costCalculator(['opus-clip', 'vizard', 'vidyo-ai', '2short'], { minutes: 300 })}
-<p>Tools that bill per clip or per video (Klap, Submagic, SendShort) cannot be
-placed on this axis honestly. Their plans, and every free tier side by side, are
-in <a href="/free-ai-clipping-tools-compared">the free plans comparison</a> and
-<a href="/alternatives">the alternatives hub</a>.</p>
-
-${faqBlock(PRICING_FAQ)}
-
-${sources([
-  'OpenShorts plan prices and minutes from the project\'s pricing data, the same figures the in-app checkout uses.',
-  'Cancellation, renewal and withdrawal terms: <a href="/terms">Terms of Service</a>, sections 11 and 12. Refunds: <a href="/refunds">Refund Policy</a>.',
-  `Competitor prices in the calculator checked ${esc(PRICE_MODELS['opus-clip'].checked)} on each vendor's public pricing page.`,
-])}
-`,
-  faq: PRICING_FAQ,
-  extraNodes: [
-    {
-      '@type': 'Product',
-      '@id': `${SITE.url}/pricing#product`,
-      name: 'OpenShorts Cloud',
-      description: EDITIONS.cloud.summary,
-      image: SITE.ogImage,
-      brand: { '@id': `${SITE.url}/#organization` },
-      url: `${SITE.url}/pricing`,
-      offers: [
-        {
-          '@type': 'Offer',
-          name: 'Free',
-          price: '0',
-          priceCurrency: 'USD',
-          url: `${SITE.url}/pricing`,
-          description: `First video up to ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month, watermarked, no credit card.`,
-        },
-        ...PAID.flatMap((p) => [
-          {
-            '@type': 'Offer',
-            name: `${p.name} (monthly)`,
-            price: String(p.monthly),
-            priceCurrency: 'USD',
-            url: `${SITE.url}/pricing`,
-            description: `${p.minutes} minutes of source video a month, no watermark.`,
-            priceSpecification: {
-              '@type': 'UnitPriceSpecification',
-              price: p.monthly,
-              priceCurrency: 'USD',
-              unitCode: 'MON',
-              referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' },
-            },
-          },
-          {
-            '@type': 'Offer',
-            name: `${p.name} (yearly)`,
-            price: String(p.yearlyTotal),
-            priceCurrency: 'USD',
-            url: `${SITE.url}/pricing`,
-            description: `${p.minutes} minutes of source video a month, billed yearly, no watermark.`,
-            priceSpecification: {
-              '@type': 'UnitPriceSpecification',
-              price: p.yearlyTotal,
-              priceCurrency: 'USD',
-              unitCode: 'ANN',
-              referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'ANN' },
-            },
-          },
-        ]),
-      ],
-    },
-    {
-      '@type': 'SoftwareApplication',
-      '@id': `${SITE.url}/pricing#selfhosted`,
-      name: EDITIONS.selfHosted.name,
-      applicationCategory: 'MultimediaApplication',
-      operatingSystem: 'Linux, macOS, Windows (Docker)',
-      description: EDITIONS.selfHosted.summary,
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    },
-  ],
-  related: ['/self-hosted-ai-clip-maker', '/free-ai-clipping-tools-compared', '/opus-clip-pricing'],
-})
 
 /* ---------------------------------------------------- /self-hosted-ai-clip-maker */
 
@@ -587,7 +286,7 @@ is up only while your machine is. Setup and the tool list are on
 </ul>
 <p>Nothing is feature-locked: the hosted plans pay for hardware and keys, not
 for features. If those trade-offs are not worth it to you, the
-<a href="/pricing">Cloud plans</a> start with a free tier and go from
+<a href="/#pricing">Cloud plans</a> start with a free tier and go from
 ${money(STARTER.monthly)} to ${money(PRO.monthly)} a month.</p>
 
 <h2>Self-hosted or Cloud: a quick decision</h2>
@@ -630,7 +329,7 @@ ${sources([
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
       },
     ],
-    related: ['/open-source-video-clipper', '/pricing', '/mcp'],
+    related: ['/open-source-video-clipper', '/how-to', '/mcp'],
   }
 }
 
@@ -733,7 +432,7 @@ const freeCompared = () => {
     limits: 'Clips kept 7 days',
     paid: `${money(STARTER.monthly)}/month`,
     checked: OS.checked,
-    link: '/pricing',
+    link: '/#pricing',
     us: true,
   }
   const osSelf = {
@@ -860,7 +559,7 @@ cost to recover. The reasoning is laid out on
 <a href="/free-ai-clip-generator">the free AI clip generator page</a>.</p>
 <p>The OpenShorts Cloud free plan follows the hosted rule and says so: its clips
 are watermarked, and paid plans from ${money(STARTER.monthly)}/month are not. The
-<a href="/pricing">pricing page</a> has every plan.</p>
+<a href="/#pricing">pricing table on the homepage</a> has every plan.</p>
 
 <h2>What happens when the free plan runs out?</h2>
 <ul>
@@ -868,22 +567,22 @@ ${vendorRows.filter((r) => r.ongoing).map((r) => `<li><strong>${esc(r.name)}:</s
 <li><strong>OpenShorts Cloud:</strong> ${STARTER.name} at ${money(STARTER.monthly)}/month for ${STARTER.minutes} minutes, or self-host for $0.</li>
 </ul>
 <p>To price your own monthly volume across the tools that meter minutes, use the
-calculator on <a href="/pricing">the pricing page</a> or the
+calculator on <a href="/alternatives">the alternatives hub</a> or the
 <a href="/opus-clip-pricing">Opus Clip pricing breakdown</a>.</p>
 
 ${faqBlock(faq)}
 
 ${sources([
   ...vendorRows.map((r) => `${esc(r.name)}: free tier and entry price checked ${esc(r.checked)}; details on <a href="${esc(r.link)}">our ${esc(r.name)} comparison</a>.`),
-  `OpenShorts: <a href="/pricing">plans</a> and <a href="${SITE.repo}" rel="noopener">source on GitHub</a>.`,
+  `OpenShorts: <a href="/#pricing">plans</a> and <a href="${SITE.repo}" rel="noopener">source on GitHub</a>.`,
 ])}
 `,
     faq,
-    related: ['/free-ai-clip-generator', '/alternatives', '/pricing'],
+    related: ['/free-ai-clip-generator', '/alternatives', '/self-hosted-ai-clip-maker'],
   }
 }
 
-/* -------------------------------------------------- /how-to-clip-a-youtube-video */
+/* -------------------------------------------------- /how-to/clip-a-youtube-video */
 
 const HOWTO_FAQ = [
   {
@@ -921,12 +620,12 @@ const HOWTO_FAQ = [
 ]
 
 const howToClip = () => ({
-  path: '/how-to-clip-a-youtube-video',
+  path: '/how-to/clip-a-youtube-video',
   title: 'How to Clip a YouTube Video in 2026 (4 Ways, Free)',
   description:
     'Four free ways to clip a YouTube video: share a moment, edit your own in YouTube Studio, cut it with ffmpeg or a free trimmer, or let AI cut it into Shorts.',
   h1: 'How to clip a YouTube video: 4 free ways, from a link to a vertical Short',
-  breadcrumb: [{ name: 'How to clip a YouTube video' }],
+  breadcrumb: [{ name: 'Guides', path: '/how-to' }, { name: 'How to clip a YouTube video' }],
   published: PUBLISHED,
   updated: PUBLISHED,
   cta: {
@@ -1052,15 +751,15 @@ moments already cut, reframed and captioned.</p>
 </ol>
 <p>The same rights rule applies: use it on your own videos, on channels you
 manage, or on footage you are licensed to clip. The details for YouTube sources
-are on <a href="/youtube-clip-maker">the YouTube clip maker</a> page, and for
+are on <a href="/platforms/youtube">the YouTube clip maker</a> page, and for
 turning a channel's long videos into Shorts, see
-<a href="/youtube-shorts-maker">the YouTube Shorts maker</a> and
+<a href="/platforms/youtube-shorts">the YouTube Shorts maker</a> and
 <a href="/youtube-to-shorts-converter">the YouTube to Shorts converter</a>.</p>
 <p>What it costs: OpenShorts self-hosted is free and open source under MIT, with
 no watermark and no cap. OpenShorts Cloud clips your first video free up to
 ${FIRST_VIDEO_MINUTES} minutes, then ${FREE.monthly.minutes} minutes a month with a
 watermark, and paid plans start at ${money(STARTER.monthly)}/month without one
-(<a href="/pricing">all plans</a>).</p>
+(<a href="/#pricing">all plans</a>).</p>
 
 <h2>Copyright: what you are allowed to clip</h2>
 <p>The method is the easy part. Whether you may use the clip is the one that gets
@@ -1105,7 +804,7 @@ ${sources([
   extraNodes: [
     {
       '@type': 'HowTo',
-      '@id': `${SITE.url}/how-to-clip-a-youtube-video#howto`,
+      '@id': `${SITE.url}/how-to/clip-a-youtube-video#howto`,
       name: 'How to clip a YouTube video',
       description:
         'Cut a segment out of a YouTube video you own or are licensed to use, and turn it into a vertical clip for Shorts, TikTok or Reels.',
@@ -1145,9 +844,9 @@ ${sources([
       ],
     },
   ],
-  related: ['/youtube-clip-maker', '/youtube-shorts-maker', '/youtube-to-shorts-converter'],
+  related: ['/platforms/youtube', '/platforms/youtube-shorts', '/youtube-to-shorts-converter'],
 })
 
 export function guidePages() {
-  return [pricing(), selfHosted(), freeCompared(), howToClip()]
+  return [selfHosted(), freeCompared(), howToClip()]
 }

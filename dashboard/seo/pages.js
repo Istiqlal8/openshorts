@@ -20,6 +20,7 @@ import { toolPages } from './tools.js'
 import { autopilotPages } from './autopilot-pages.js'
 import { guidePages } from './guide-pages.js'
 import { clipToolPages } from './clip-tools.js'
+import { hubPages } from './hub-pages.js'
 
 const li = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul>`
 const ol = (items) => `<ol>${items.map((i) => `<li>${i}</li>`).join('')}</ol>`
@@ -911,7 +912,7 @@ const podcastToShorts = () => ({
     'Podcast clip maker: paste an episode, get 3 to 15 vertical podcast clips with subtitles and both speakers in frame. Free self-hosted; hosted from $12/month.',
   h1: 'Podcast clip maker: AI podcast clips that keep both speakers in frame',
   relatedTitle: 'Related tools',
-  breadcrumb: [{ name: 'Podcast clips' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'Podcast clips' }],
   published: '2026-08-04',
   updated: '2026-10-05',
   tldr: [
@@ -958,7 +959,7 @@ one side of the table.</p>
 </ol>
 <p>The same steps work for any long recording of people talking. Church
 services are the closest case to a podcast: one speaker for most of an hour, and
-the <a href="/sermon-clip-maker">sermon clip maker</a> page covers clipping only
+the <a href="/use-cases/sermons">sermon clip maker</a> page covers clipping only
 the sermon and keeping a preacher who walks the stage in frame.</p>
 
 <h2>Real podcast clips, next to their source</h2>
@@ -2467,7 +2468,7 @@ const gtaClips = () => ({
   description:
     'Turn GTA 5 and GTA RP stream VODs into shorts: gameplay keeps its full width and the facecam is enlarged, not cropped out. Free self-hosted, no meter.',
   h1: 'Turn GTA 5 and GTA RP streams into vertical clips',
-  breadcrumb: [{ name: 'GTA 5 clips' }],
+  breadcrumb: [{ name: 'Use cases', path: '/use-cases' }, { name: 'GTA 5 clips' }],
   published: '2026-09-15',
   updated: '2026-09-15',
   tldr: [
@@ -2685,19 +2686,19 @@ const RELATED = {
   '/alternatives/vidyo-ai': ['/alternatives', '/alternatives/opus-clip', '/alternatives/sendshort'],
   '/alternatives/2short': ['/alternatives', '/youtube-to-shorts-converter', '/alternatives/klap'],
   '/alternatives/sendshort': ['/alternatives', '/alternatives/submagic', '/alternatives/vidyo-ai'],
-  '/opus-clip-pricing': ['/opus-ai', '/alternatives/opus-clip', '/pricing', '/alternatives'],
+  '/opus-clip-pricing': ['/opus-ai', '/alternatives/opus-clip', '/alternatives'],
   '/opus-ai': ['/opus-clip-pricing', '/alternatives/opus-clip', '/alternatives'],
   '/vizard-ai': ['/alternatives/vizard', '/vizard-ai-video-to-text', '/alternatives'],
   '/vizard-ai-video-to-text': ['/vizard-ai', '/youtube-transcript-generator', '/alternatives/vizard'],
   '/submagic-reviews': ['/alternatives/submagic', '/alternatives', '/opus-clip-pricing'],
   '/alternativas': ['/alternatives', '/alternatives/opus-clip', '/opus-clip-pricing'],
-  '/free-ai-clip-generator': ['/free-ai-clipping-tools-compared', '/self-hosted-ai-clip-maker', '/pricing', '/open-source-video-clipper', '/alternatives/opus-clip', '/tools'],
+  '/free-ai-clip-generator': ['/free-ai-clipping-tools-compared', '/self-hosted-ai-clip-maker', '/open-source-video-clipper', '/alternatives/opus-clip', '/tools'],
   '/open-source-video-clipper': ['/self-hosted-ai-clip-maker', '/how-openshorts-works', '/open-source-ai-video-generator', '/free-ai-clip-generator'],
-  '/open-source-ai-video-generator': ['/ai-reel-generator', '/open-source-video-clipper', '/how-openshorts-works', '/free-ai-clip-generator'],
+  '/open-source-ai-video-generator': ['/platforms/instagram-reels', '/open-source-video-clipper', '/how-openshorts-works', '/free-ai-clip-generator'],
   '/how-openshorts-works': ['/auto-reframe', '/podcast-to-shorts', '/gta-5-clips', '/youtube-to-shorts-converter'],
-  '/gta-5-clips': ['/twitch-clip-maker', '/kick-clip-maker', '/podcast-to-shorts', '/how-openshorts-works', '/auto-clip'],
-  '/podcast-to-shorts': ['/youtube-to-shorts-converter', '/sermon-clip-maker', '/how-openshorts-works', '/youtube-clip-maker', '/auto-clip'],
-  '/youtube-to-shorts-converter': ['/how-to-clip-a-youtube-video', '/youtube-shorts-maker', '/podcast-to-shorts', '/how-openshorts-works', '/video-aspect-ratio-converter'],
+  '/gta-5-clips': ['/platforms/twitch', '/platforms/kick', '/podcast-to-shorts', '/how-openshorts-works', '/auto-clip'],
+  '/podcast-to-shorts': ['/youtube-to-shorts-converter', '/use-cases/sermons', '/how-openshorts-works', '/platforms/youtube', '/auto-clip'],
+  '/youtube-to-shorts-converter': ['/how-to/clip-a-youtube-video', '/platforms/youtube-shorts', '/podcast-to-shorts', '/how-openshorts-works', '/video-aspect-ratio-converter'],
   '/mcp': ['/automate-shorts-api', '/n8n-youtube-shorts-automation', '/youtube-automation'],
   '/automate-shorts-api': ['/mcp', '/n8n-youtube-shorts-automation', '/auto-clip'],
   '/n8n-youtube-shorts-automation': ['/automate-shorts-api', '/auto-clip', '/mcp'],
@@ -2737,8 +2738,11 @@ export function buildPages() {
     related: p.related || RELATED[p.path],
     relatedTitle: p.relatedTitle || relatedTitleFor(p.path),
   }))
-  // The tool and autopilot modules name their own neighbours.
-  return [...pages, ...guidePages(), ...autopilotPages(), ...toolPages(), ...clipToolPages()]
+  // The tool and autopilot modules name their own neighbours. The topic hubs
+  // (/platforms, /use-cases, /how-to) come last: they list only pages that
+  // are actually built, so they are built from everything else.
+  const rest = [...pages, ...guidePages(), ...autopilotPages(), ...toolPages(), ...clipToolPages()]
+  return [...rest, ...hubPages(rest)]
 }
 
 /* Each page links to three siblings. Small, described clusters beat a single
@@ -2777,18 +2781,20 @@ export function relatedFor(page, all) {
     '/video-aspect-ratio-converter': '16:9 to 9:16 in your browser: blur, crop or bars.',
     // Pages added by other modules; a blurb for a page that is not built is
     // simply never used.
-    '/youtube-clip-maker': 'Paste a YouTube link, get vertical clips with captions and hooks.',
-    '/youtube-shorts-maker': 'Shorts from long videos: length, hooks, captions, posting, Autopilot.',
-    '/tiktok-clip-maker': 'Long video to TikToks, and why they land in TikTok as drafts.',
-    '/ai-reel-generator': 'Reels posted straight to Instagram, Facebook Reels as files.',
-    '/twitch-clip-maker': 'VODs clipped in parts, facecam kept, silent gameplay handled.',
-    '/kick-clip-maker': 'Kick VOD and clip links, IRL and facecam layouts, permission.',
+    '/platforms/youtube': 'Paste a YouTube link, get vertical clips with captions and hooks.',
+    '/platforms/youtube-shorts': 'Shorts from long videos: length, hooks, captions, posting, Autopilot.',
+    '/platforms/tiktok': 'Long video to TikToks, and why they land in TikTok as drafts.',
+    '/platforms/instagram-reels': 'Reels posted straight to Instagram, Facebook Reels as files.',
+    '/platforms/twitch': 'VODs clipped in parts, facecam kept, silent gameplay handled.',
+    '/platforms/kick': 'Kick VOD and clip links, IRL and facecam layouts, permission.',
     '/auto-reframe': 'AI tracking, stacked speakers and screens, versus a static crop.',
-    '/sermon-clip-maker': 'Clip only the sermon, follow the preacher, a clip a day.',
-    '/how-to-clip-a-youtube-video': 'Share a moment, Studio, ffmpeg, or AI-cut Shorts: four free ways.',
+    '/use-cases/sermons': 'Clip only the sermon, follow the preacher, a clip a day.',
+    '/how-to/clip-a-youtube-video': 'Share a moment, Studio, ffmpeg, or AI-cut Shorts: four free ways.',
     '/self-hosted-ai-clip-maker': 'Docker setup, hardware, your own keys, and the real cost vs credits.',
-    '/pricing': 'Free plan, $12 to $59 a month, $0 self-hosted: what a minute buys.',
     '/free-ai-clipping-tools-compared': 'Every free tier side by side: minutes, resolution, who watermarks.',
+    '/platforms': 'YouTube, Shorts, TikTok, Reels, Twitch and Kick, with their specs side by side.',
+    '/use-cases': 'Podcasts, sermons, gaming streams and channels clipped on autopilot.',
+    '/how-to': 'Guides to clip a video, self-host OpenShorts and automate Shorts.',
   }
   const card = (p) => ({ path: p.path, title: p.h1, blurb: blurb[p.path] || p.description })
   // A page can name its own neighbours: the first three of its list that are
